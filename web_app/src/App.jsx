@@ -431,6 +431,32 @@ export default function App() {
 
                   </div>
 
+                  {/* Forecast7 Live Weather Widget Card */}
+                  <div className="bg-white/18 backdrop-blur-md p-4 rounded-3xl border border-white/30 space-y-2">
+                    <div className="flex items-center justify-between text-xs font-bold text-white mb-1">
+                      <span className="flex items-center gap-1.5">
+                        <span>🌐</span>
+                        <span>Forecast7 Live Embed</span>
+                      </span>
+                      <a 
+                        href={`https://forecast7.com/en/16z3180z44/${encodeURIComponent(weatherData?.location?.toLowerCase() || 'guntur')}/`} 
+                        target="_blank" 
+                        rel="noreferrer"
+                        className="text-[10px] bg-blue-500/40 hover:bg-blue-500/60 px-2 py-0.5 rounded-full transition-colors text-white text-decoration-none"
+                      >
+                        Forecast7.com ↗
+                      </a>
+                    </div>
+                    <div className="w-full h-36 rounded-xl overflow-hidden border border-white/20 bg-black/20">
+                      <iframe
+                        title="Forecast7 Weather Widget"
+                        src={`https://forecast7.com/en/16z3180z44/${encodeURIComponent(weatherData?.location?.toLowerCase() || 'guntur')}/`}
+                        className="w-full h-full border-0"
+                        scrolling="no"
+                      ></iframe>
+                    </div>
+                  </div>
+
                   {/* Air Quality (AQI Arc Glass Card) */}
                   <div className="bg-white/18 backdrop-blur-md p-4 rounded-3xl border border-white/30 space-y-3">
                     <div className="flex items-center justify-between text-xs font-bold text-white">

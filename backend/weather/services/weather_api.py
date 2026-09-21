@@ -307,6 +307,8 @@ class WeatherAPIService:
                 "moonset": "01:54"
             },
             "lifestyle_activities": lifestyle,
+            "forecast7_url": f"https://forecast7.com/en/16z3180z44/{clean_location.lower().replace(' ', '-')}/",
+            "forecast7_widget_id": f"forecast7-{clean_location.lower()}",
             "is_demo": False,
             "weather_source": "open_meteo",
             "mode_label": "🟢 LIVE WEATHER",
@@ -402,6 +404,8 @@ class WeatherAPIService:
                 {"name": "Cold risk", "status": "Not Easy", "icon": "pill"},
                 {"name": "Mosquito activity", "status": "Extremely High", "icon": "bug"}
             ],
+            "forecast7_url": f"https://forecast7.com/en/16z3180z44/{clean_name.lower().replace(' ', '-')}/",
+            "forecast7_widget_id": f"forecast7-{clean_name.lower()}",
             "is_demo": True,
             "demo_scenario": mode,
             "weather_source": "demo",
