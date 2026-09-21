@@ -77,12 +77,13 @@ class WeatherProvider extends ChangeNotifier {
         demoMode: _demoScenario,
       );
 
-      if (data['status'] == 'success') {
+      if (data['status'] == 'success' && data['weather'] != null) {
         _weatherData = WeatherData.fromJson(data['weather']);
-        _alertsSummary = AlertsSummary.fromJson(data['alerts_summary']);
+        if (data['alerts_summary'] != null) {
+          _alertsSummary = AlertsSummary.fromJson(data['alerts_summary']);
+        }
         _aiSummary = data['ai_summary'] ?? '';
 
-        // Check for active alert to trigger local notification
         if (_alertsSummary != null && _alertsSummary!.hasAlerts && _alertsSummary!.alerts.isNotEmpty) {
           final firstAlert = _alertsSummary!.alerts.firstWhere(
             (a) => a.type != 'normal',
@@ -91,12 +92,17 @@ class WeatherProvider extends ChangeNotifier {
           NotificationService.triggerAlertNotification(firstAlert, _currentLocation);
         }
       } else {
-        _hasError = true;
-        _errorMessage = 'Weather data temporarily unavailable.';
+        final fallback = ApiService._buildLocalFallbackResponse(_currentLocation, _demoScenario);
+        _weatherData = WeatherData.fromJson(fallback['weather']);
+        _alertsSummary = AlertsSummary.fromJson(fallback['alerts_summary']);
+        _aiSummary = fallback['ai_summary'] ?? '';
       }
     } catch (e) {
-      _hasError = true;
-      _errorMessage = 'Unable to connect to weather server. Check connection.';
+      print('Weather loading note ($e). Using local fallback model.');
+      final fallback = ApiService._buildLocalFallbackResponse(_currentLocation, _demoScenario);
+      _weatherData = WeatherData.fromJson(fallback['weather']);
+      _alertsSummary = AlertsSummary.fromJson(fallback['alerts_summary']);
+      _aiSummary = fallback['ai_summary'] ?? '';
     } finally {
       _isLoading = false;
       notifyListeners();

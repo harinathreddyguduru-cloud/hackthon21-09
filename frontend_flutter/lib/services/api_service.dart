@@ -122,16 +122,29 @@ class ApiService {
         "uv_index": 6,
         "is_mock": true,
         "provider": "Mock Demo",
+        "wind_direction": 210,
+        "wind_direction_cardinal": "SSW",
+        "uv_label": "Strong",
+        "aqi": {"score": 24, "quality": "Good", "pm25": 24, "pm10": 21, "so2": 7, "co": 2},
+        "sun_trajectory": {"sunrise": "05:59", "sunset": "18:04", "moonrise": "14:33", "moonset": "01:54"},
+        "lifestyle_activities": [
+          {"name": "Outdoor activities", "status": "Low suitability", "icon": "biking"},
+          {"name": "Stargazing", "status": "Fair", "icon": "satellite"},
+          {"name": "Fishing", "status": "Unsuitable", "icon": "fishing"},
+          {"name": "Sailing", "status": "Unsuitable", "icon": "sailing"},
+          {"name": "Cold risk", "status": "Not Easy", "icon": "pill"},
+          {"name": "Mosquito activity", "status": "Extremely High", "icon": "bug"}
+        ],
         "hourly_forecast": [
-          {"time": "10 AM", "temp": temp, "icon": "☀️", "rain_chance": rain},
+          {"time": "Now", "temp": temp, "icon": "☀️", "rain_chance": rain},
           {"time": "12 PM", "temp": temp + 1, "icon": "🌤️", "rain_chance": rain},
           {"time": "2 PM", "temp": temp, "icon": "🌧️", "rain_chance": rain},
           {"time": "4 PM", "temp": temp - 1, "icon": "🌧️", "rain_chance": rain},
         ],
         "daily_forecast": [
-          {"day": "Today", "condition": cond, "high": temp + 2, "low": temp - 4, "rain_chance": rain},
-          {"day": "Tomorrow", "condition": "Light Rain", "high": temp, "low": temp - 5, "rain_chance": 60},
-          {"day": "Wednesday", "condition": "Partly Cloudy", "high": temp + 3, "low": temp - 3, "rain_chance": 15},
+          {"day": "Today", "date": "09/21", "condition": cond, "icon": "🌤️", "high": temp + 2, "low": temp - 4, "rain_chance": rain},
+          {"day": "Tomorrow", "date": "09/22", "condition": "Light Rain", "icon": "🌧️", "high": temp, "low": temp - 5, "rain_chance": 60},
+          {"day": "Wednesday", "date": "09/23", "condition": "Partly Cloudy", "icon": "⛅", "high": temp + 3, "low": temp - 3, "rain_chance": 15},
         ]
       },
       "alerts_summary": {
