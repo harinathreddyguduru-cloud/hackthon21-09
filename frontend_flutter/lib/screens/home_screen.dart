@@ -271,7 +271,7 @@ class HomeScreen extends StatelessWidget {
                 SizedBox(
                   width: 55,
                   child: Text(
-                    d.date ?? '09/21',
+                    d.date,
                     style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 11),
                   ),
                 ),
@@ -286,7 +286,7 @@ class HomeScreen extends StatelessWidget {
                     ),
                   ),
                 ),
-                Text(d.condition.contains('Rain') ? '🌧️' : '🌤️', style: const TextStyle(fontSize: 18)),
+                Text(d.icon.isNotEmpty ? d.icon : (d.condition.contains('Rain') ? '🌧️' : '🌤️'), style: const TextStyle(fontSize: 18)),
                 const SizedBox(width: 8),
                 if (d.rainChance > 40)
                   Text('${d.rainChance}%', style: const TextStyle(color: Color(0xFF80C3FF), fontSize: 11, fontWeight: FontWeight.bold)),
@@ -315,7 +315,7 @@ class HomeScreen extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.between,
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: const [
                         Text('Feels like', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
                         Icon(Icons.thermostat_outlined, color: Colors.white, size: 16),
@@ -344,7 +344,7 @@ class HomeScreen extends StatelessWidget {
                 child: Column(
                   children: [
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.between,
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(weather.windDirectionCardinal ?? 'SSW', style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
                         const Icon(Icons.air, color: Colors.white, size: 16),
@@ -372,7 +372,7 @@ class HomeScreen extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.between,
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: const [
                         Text('Humidity', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
                         Icon(Icons.water_drop_outlined, color: Colors.white, size: 16),
@@ -394,7 +394,7 @@ class HomeScreen extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.between,
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: const [
                         Text('UV', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
                         Icon(Icons.wb_sunny_outlined, color: Colors.white, size: 16),
@@ -429,7 +429,7 @@ class HomeScreen extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.between,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: const [
               Text('Air quality', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
               Icon(Icons.nature_outlined, color: Colors.white, size: 16),

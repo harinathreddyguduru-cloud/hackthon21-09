@@ -58,7 +58,7 @@ class _TrendCurvePainter extends CustomPainter {
     if (hourly.length < 2) return;
 
     final paintLine = Paint()
-      :color = const Color(0xFFFFB74D)
+      ..color = const Color(0xFFFFB74D)
       ..strokeWidth = 3.0
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round;

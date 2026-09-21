@@ -51,7 +51,7 @@ class LifestyleGrid extends StatelessWidget {
                 name,
                 style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
                 maxLines: 1,
-                overflow: TextSpanOverflow.ellipsis,
+                overflow: TextOverflow.ellipsis,
               ),
               const SizedBox(height: 2),
               Text(

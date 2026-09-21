@@ -15,6 +15,12 @@ class WeatherData {
   final String modeSubtitle;
   final String? demoScenario;
   final String provider;
+  final int windDirection;
+  final String windDirectionCardinal;
+  final String uvLabel;
+  final Map<String, dynamic> aqi;
+  final Map<String, String> sunTrajectory;
+  final List<Map<String, dynamic>> lifestyleActivities;
   final List<HourlyForecast> hourlyForecast;
   final List<DailyForecast> dailyForecast;
 
@@ -35,6 +41,12 @@ class WeatherData {
     required this.modeSubtitle,
     this.demoScenario,
     required this.provider,
+    required this.windDirection,
+    required this.windDirectionCardinal,
+    required this.uvLabel,
+    required this.aqi,
+    required this.sunTrajectory,
+    required this.lifestyleActivities,
     required this.hourlyForecast,
     required this.dailyForecast,
   });
@@ -57,6 +69,16 @@ class WeatherData {
       modeSubtitle: json['mode_subtitle'] ?? (json['is_mock'] == true ? 'Simulated weather scenario' : 'Real weather data from Open-Meteo'),
       demoScenario: json['demo_scenario'],
       provider: json['provider'] ?? 'Open-Meteo',
+      windDirection: ((json['wind_direction'] ?? 210) as num).toInt(),
+      windDirectionCardinal: json['wind_direction_cardinal'] ?? json['wind_dir'] ?? 'SSW',
+      uvLabel: json['uv_label'] ?? 'Strong',
+      aqi: json['aqi'] is Map ? Map<String, dynamic>.from(json['aqi']) : {"score": 24, "quality": "Good", "pm25": 24, "pm10": 21, "so2": 7, "co": 2},
+      sunTrajectory: json['sun_trajectory'] is Map
+          ? (json['sun_trajectory'] as Map).map((k, v) => MapEntry(k.toString(), v.toString()))
+          : {"sunrise": "05:59", "sunset": "18:04", "moonrise": "14:33", "moonset": "01:54"},
+      lifestyleActivities: json['lifestyle_activities'] is List
+          ? (json['lifestyle_activities'] as List).map((i) => Map<String, dynamic>.from(i as Map)).toList()
+          : [],
       hourlyForecast: (json['hourly_forecast'] as List? ?? [])
           .map((item) => HourlyForecast.fromJson(item))
           .toList(),
@@ -91,15 +113,19 @@ class HourlyForecast {
 }
 
 class DailyForecast {
+  final String date;
   final String day;
   final String condition;
+  final String icon;
   final int high;
   final int low;
   final int rainChance;
 
   DailyForecast({
+    required this.date,
     required this.day,
     required this.condition,
+    required this.icon,
     required this.high,
     required this.low,
     required this.rainChance,
@@ -107,8 +133,10 @@ class DailyForecast {
 
   factory DailyForecast.fromJson(Map<String, dynamic> json) {
     return DailyForecast(
+      date: json['date'] ?? json['day'] ?? '09/21',
       day: json['day'] ?? '',
       condition: json['condition'] ?? '',
+      icon: json['icon'] ?? '🌤️',
       high: (json['high'] as num).toInt(),
       low: (json['low'] as num).toInt(),
       rainChance: (json['rain_chance'] as num).toInt(),
