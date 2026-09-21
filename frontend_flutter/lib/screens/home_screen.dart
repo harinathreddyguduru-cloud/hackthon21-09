@@ -27,7 +27,7 @@ class HomeScreen extends StatelessWidget {
           body: SkyBackground(
             conditionCode: conditionCode,
             child: SafeArea(
-              child: provider.isLoading || weather == null
+              child: weather == null
                   ? _buildLoadingState(provider)
                   : RefreshIndicator(
                       onRefresh: () => provider.loadWeather(),

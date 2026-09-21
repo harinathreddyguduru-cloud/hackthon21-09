@@ -34,29 +34,36 @@ class WeatherProvider extends ChangeNotifier {
   bool get locationPermissionGranted => _locationPermissionGranted;
 
   WeatherProvider() {
+    _populateInstantFallback();
     initWeather();
   }
 
-  Future<void> initWeather() async {
-    _isLoading = true;
-    notifyListeners();
-
-    // Check location permission and fetch GPS coordinates
-    final locResult = await LocationService.getCurrentLocation();
-    _locationPermissionGranted = locResult['granted'] ?? true;
-    
-    if (locResult['lat'] != null && locResult['lon'] != null) {
-      _currentLat = (locResult['lat'] as num).toDouble();
-      _currentLon = (locResult['lon'] as num).toDouble();
-    }
-    if (locResult['location'] != null && locResult['location'] != 'Current Location') {
-      _currentLocation = locResult['location'];
-    }
-
-    await loadWeather();
+  void _populateInstantFallback() {
+    final fallback = ApiService.buildLocalFallbackResponse(_currentLocation, _demoScenario);
+    _weatherData = WeatherData.fromJson(fallback['weather']);
+    _alertsSummary = AlertsSummary.fromJson(fallback['alerts_summary']);
+    _aiSummary = fallback['ai_summary'] ?? '';
+    _isLoading = false;
   }
 
-  Future<void> loadWeather({String? targetLocation, double? lat, double? lon}) async {
+  Future<void> initWeather() async {
+    try {
+      final locResult = await LocationService.getCurrentLocation();
+      _locationPermissionGranted = locResult['granted'] ?? true;
+      
+      if (locResult['lat'] != null && locResult['lon'] != null) {
+        _currentLat = (locResult['lat'] as num).toDouble();
+        _currentLon = (locResult['lon'] as num).toDouble();
+      }
+      if (locResult['location'] != null && locResult['location'] != 'Current Location') {
+        _currentLocation = locResult['location'];
+      }
+    } catch (_) {}
+
+    await loadWeather(showSpinner: false);
+  }
+
+  Future<void> loadWeather({String? targetLocation, double? lat, double? lon, bool showSpinner = true}) async {
     if (targetLocation != null) {
       _currentLocation = targetLocation;
     }
@@ -65,9 +72,11 @@ class WeatherProvider extends ChangeNotifier {
       _currentLon = lon;
     }
 
-    _isLoading = true;
-    _hasError = false;
-    notifyListeners();
+    if (showSpinner) {
+      _isLoading = true;
+      _hasError = false;
+      notifyListeners();
+    }
 
     try {
       final data = await ApiService.fetchCurrentWeather(
@@ -91,18 +100,14 @@ class WeatherProvider extends ChangeNotifier {
           );
           NotificationService.triggerAlertNotification(firstAlert, _currentLocation);
         }
-      } else {
-        final fallback = ApiService.buildLocalFallbackResponse(_currentLocation, _demoScenario);
-        _weatherData = WeatherData.fromJson(fallback['weather']);
-        _alertsSummary = AlertsSummary.fromJson(fallback['alerts_summary']);
-        _aiSummary = fallback['ai_summary'] ?? '';
+      } else if (_weatherData == null) {
+        _populateInstantFallback();
       }
     } catch (e) {
-      print('Weather loading note ($e). Using local fallback model.');
-      final fallback = ApiService.buildLocalFallbackResponse(_currentLocation, _demoScenario);
-      _weatherData = WeatherData.fromJson(fallback['weather']);
-      _alertsSummary = AlertsSummary.fromJson(fallback['alerts_summary']);
-      _aiSummary = fallback['ai_summary'] ?? '';
+      print('Weather loading note ($e). Retaining available weather data.');
+      if (_weatherData == null) {
+        _populateInstantFallback();
+      }
     } finally {
       _isLoading = false;
       notifyListeners();
