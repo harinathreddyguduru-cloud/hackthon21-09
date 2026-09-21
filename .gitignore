@@ -1,0 +1,29 @@
+# Environment and Virtual Environments
+venv/
+.env
+.env.local
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+db.sqlite3
+
+# Node / Vite Web App
+web_app/node_modules/
+web_app/dist/
+web_app/.vite/
+
+# Flutter / Dart
+frontend_flutter/.dart_tool/
+frontend_flutter/.pub-cache/
+frontend_flutter/.pub/
+frontend_flutter/build/
+frontend_flutter/.idea/
+frontend_flutter/*.iml
+
+# IDE & System
+.DS_Store
+Thumbs.db
+.vscode/
