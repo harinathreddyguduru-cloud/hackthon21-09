@@ -25,7 +25,7 @@ class ApiService {
     final uri = Uri.parse('$baseUrl/current/').replace(queryParameters: queryParams);
 
     try {
-      final response = await http.get(uri).timeout(const Duration(seconds: 5));
+      final response = await http.get(uri).timeout(const Duration(seconds: 3));
       if (response.statusCode == 200) {
         return json.decode(response.body);
       }
