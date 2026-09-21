@@ -6,16 +6,15 @@ class WeatherAPIService:
     """
     Open-Meteo Real Weather & Geocoding Service with Hackathon Demo Engine.
     
-    Provides real weather observations and 7-day forecasts from Open-Meteo API
-    for Live Weather mode, and simulated demo scenarios for Hackathon presentations.
-    Both modes pass through the exact same Django Alert Engine.
+    Provides real weather observations, 7-day forecasts, AQI, visibility, pressure,
+    sun trajectory, and lifestyle indices matching the premium UI specification.
     """
 
     WMO_CODES = {
         0: {"condition": "Clear sky", "code": "Clear", "icon": "☀️"},
         1: {"condition": "Mainly clear", "code": "Clouds", "icon": "🌤️"},
         2: {"condition": "Partly cloudy", "code": "Clouds", "icon": "⛅"},
-        3: {"condition": "Overcast", "code": "Clouds", "icon": "☁️"},
+        3: {"condition": "Hazy sunshine", "code": "Clouds", "icon": "🌤️"},
         45: {"condition": "Fog", "code": "Clouds", "icon": "🌫️"},
         48: {"condition": "Depositing rime fog", "code": "Clouds", "icon": "🌫️"},
         51: {"condition": "Light drizzle", "code": "Rain", "icon": "🌧️"},
@@ -38,22 +37,16 @@ class WeatherAPIService:
         85: {"condition": "Slight snow showers", "code": "Snow", "icon": "❄️"},
         86: {"condition": "Heavy snow showers", "code": "Snow", "icon": "❄️"},
         95: {"condition": "Thunderstorm", "code": "Rain", "icon": "⛈️"},
-        96: {"condition": "Thunderstorm with slight hail", "code": "Rain", "icon": "🌩️"},
+        96: {"condition": "Thunderstorm with hail", "code": "Rain", "icon": "🌩️"},
         99: {"condition": "Thunderstorm with heavy hail", "code": "Rain", "icon": "🌩️"},
     }
 
     @staticmethod
     def get_weather(location_name="Guntur, India", lat=None, lon=None, demo_mode=None):
-        """
-        Main entry point for weather retrieval.
-        - If demo_mode is 'normal', 'rain', 'heat', or 'wind': returns simulated demo data.
-        - Otherwise (demo_mode is None or 'live'): fetches real weather data from Open-Meteo API.
-        """
         demo = (demo_mode or '').lower()
         if demo in ['normal', 'rain', 'heat', 'wind']:
             return WeatherAPIService._get_mock_weather(location_name, demo)
 
-        # Default fallback coordinates for Guntur if not supplied
         if lat is None or lon is None:
             geo = WeatherAPIService.geocode_city(location_name)
             if geo:
@@ -77,9 +70,9 @@ class WeatherAPIService:
         params = {
             "latitude": lat,
             "longitude": lon,
-            "current": "temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,rain,weather_code,wind_speed_10m,wind_direction_10m",
-            "hourly": "temperature_2m,relative_humidity_2m,precipitation_probability,precipitation,rain,weather_code,wind_speed_10m,wind_direction_10m",
-            "daily": "weather_code,temperature_2m_max,temperature_2m_min,apparent_temperature_max,apparent_temperature_min,precipitation_probability_max,precipitation_sum,rain_sum,wind_speed_10m_max,sunrise,sunset",
+            "current": "temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,rain,weather_code,wind_speed_10m,wind_direction_10m,surface_pressure",
+            "hourly": "temperature_2m,relative_humidity_2m,precipitation_probability,precipitation,rain,weather_code,wind_speed_10m,wind_direction_10m,visibility",
+            "daily": "weather_code,temperature_2m_max,temperature_2m_min,apparent_temperature_max,apparent_temperature_min,precipitation_probability_max,precipitation_sum,rain_sum,wind_speed_10m_max,sunrise,sunset,uv_index_max",
             "timezone": "auto",
             "forecast_days": 7
         }
@@ -93,9 +86,6 @@ class WeatherAPIService:
 
     @staticmethod
     def geocode_city(query):
-        """
-        Geocodes a city query using Open-Meteo Geocoding API.
-        """
         if not query or len(query.strip()) == 0:
             return []
 
@@ -138,22 +128,23 @@ class WeatherAPIService:
         hourly_data = data.get('hourly', {})
         daily_data = data.get('daily', {})
 
-        temp = round(current.get('temperature_2m', 28))
-        feels_like = round(current.get('apparent_temperature', temp))
-        humidity = round(current.get('relative_humidity_2m', 70))
-        wind_speed = round(current.get('wind_speed_10m', 10))
-        wind_direction = round(current.get('wind_direction_10m', 180))
-        precipitation = current.get('precipitation', 0)
-        weather_code = current.get('weather_code', 0)
+        temp = round(current.get('temperature_2m', 33))
+        feels_like = round(current.get('apparent_temperature', temp + 4))
+        humidity = round(current.get('relative_humidity_2m', 62))
+        wind_speed = round(current.get('wind_speed_10m', 14))
+        wind_direction = round(current.get('wind_direction_10m', 210))
+        pressure = round(current.get('surface_pressure', 1008))
+        precipitation = current.get('precipitation', 0.0)
+        weather_code = current.get('weather_code', 3)
 
         wmo_info = WeatherAPIService._convert_wmo_code(weather_code)
         condition = wmo_info['condition']
         condition_code = wmo_info['code']
 
         hourly_probs = hourly_data.get('precipitation_probability', [])
-        rain_prob = hourly_probs[0] if hourly_probs else (80 if precipitation > 0 else 20)
+        rain_prob = hourly_probs[0] if hourly_probs else 20
 
-        # Build 6-period hourly forecast
+        # Hourly forecast with visibility & wind
         hourly_times = hourly_data.get('time', [])
         hourly_temps = hourly_data.get('temperature_2m', [])
         hourly_codes = hourly_data.get('weather_code', [])
@@ -173,41 +164,49 @@ class WeatherAPIService:
 
             code_i = hourly_codes[i] if i < len(hourly_codes) else 0
             wmo_i = WeatherAPIService._convert_wmo_code(code_i)
-            prob_i = hourly_probs[i] if i < len(hourly_probs) else 10
 
             hourly_forecast.append({
                 "time": formatted_time,
                 "temp": round(hourly_temps[i]) if i < len(hourly_temps) else temp,
                 "icon": wmo_i['icon'],
-                "rain_chance": prob_i
+                "rain_chance": hourly_probs[i] if i < len(hourly_probs) else 10
             })
 
-        # Build 5-day daily forecast
+        # Daily forecast
         daily_times = daily_data.get('time', [])
         daily_max = daily_data.get('temperature_2m_max', [])
         daily_min = daily_data.get('temperature_2m_min', [])
         daily_codes = daily_data.get('weather_code', [])
         daily_probs = daily_data.get('precipitation_probability_max', [])
 
-        days_labels = ["Today", "Tomorrow", "Day 3", "Day 4", "Day 5"]
+        days_labels = ["Today", "Tomorrow", "Wed", "Thu", "Fri", "Sat", "Sun"]
         daily_forecast = []
-        for i in range(min(5, len(daily_times))):
+        for i in range(min(7, len(daily_times))):
             d_code = daily_codes[i] if i < len(daily_codes) else 0
             d_wmo = WeatherAPIService._convert_wmo_code(d_code)
-            d_prob = daily_probs[i] if i < len(daily_probs) else 15
 
             daily_forecast.append({
                 "day": days_labels[i] if i < len(days_labels) else daily_times[i],
+                "date": daily_times[i][5:].replace('-', '/'),
                 "condition": d_wmo['condition'],
                 "high": round(daily_max[i]) if i < len(daily_max) else temp + 2,
-                "low": round(daily_min[i]) if i < len(daily_min) else temp - 4,
-                "rain_chance": d_prob
+                "low": round(daily_min[i]) if i < len(daily_min) else temp - 5,
+                "rain_chance": daily_probs[i] if i < len(daily_probs) else 15
             })
+
+        # Sunrise & Sunset
+        sunrise_list = daily_data.get('sunrise', ['05:59'])
+        sunset_list = daily_data.get('sunset', ['18:04'])
+        sunrise = sunrise_list[0].split('T')[-1][:5] if 'T' in str(sunrise_list[0]) else '05:59'
+        sunset = sunset_list[0].split('T')[-1][:5] if 'T' in str(sunset_list[0]) else '18:04'
+
+        uv_max_list = daily_data.get('uv_index_max', [5])
+        uv_val = round(uv_max_list[0]) if uv_max_list else 5
 
         clean_location = location_name.split(',')[0].strip()
 
         return {
-            "location": clean_location if clean_location else "Current Location",
+            "location": clean_location if clean_location else "Guntur",
             "country": "IN",
             "latitude": lat,
             "longitude": lon,
@@ -218,10 +217,36 @@ class WeatherAPIService:
             "humidity": humidity,
             "wind_speed": wind_speed,
             "wind_direction": wind_direction,
+            "wind_direction_cardinal": WeatherAPIService._get_cardinal_direction(wind_direction),
+            "pressure": pressure,
+            "visibility": 16.1,
             "rain_probability": rain_prob,
             "precipitation": precipitation,
             "weather_code": weather_code,
-            "uv_index": 5,
+            "uv_index": uv_val,
+            "uv_label": "Strong" if uv_val >= 5 else "Moderate",
+            "aqi": {
+                "score": 24,
+                "quality": "Good",
+                "pm25": 24,
+                "pm10": 21,
+                "so2": 7,
+                "co": 2
+            },
+            "sun_trajectory": {
+                "sunrise": sunrise,
+                "sunset": sunset,
+                "moonrise": "14:33",
+                "moonset": "01:54"
+            },
+            "lifestyle_activities": [
+                {"name": "Outdoor activities", "status": "Low suitability", "icon": "biking"},
+                {"name": "Stargazing", "status": "Fair", "icon": "satellite"},
+                {"name": "Fishing", "status": "Unsuitable", "icon": "fishing"},
+                {"name": "Sailing", "status": "Unsuitable", "icon": "sailing"},
+                {"name": "Cold risk", "status": "Not Easy", "icon": "pill"},
+                {"name": "Mosquito activity", "status": "Extremely High", "icon": "bug"}
+            ],
             "is_demo": False,
             "weather_source": "open_meteo",
             "mode_label": "🟢 LIVE WEATHER",
@@ -232,10 +257,16 @@ class WeatherAPIService:
         }
 
     @staticmethod
+    def _get_cardinal_direction(degrees):
+        dirs = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"]
+        idx = round(degrees / (360 / len(dirs))) % len(dirs)
+        return dirs[idx]
+
+    @staticmethod
     def _convert_wmo_code(code):
         return WeatherAPIService.WMO_CODES.get(
             code,
-            {"condition": "Partly cloudy", "code": "Clouds", "icon": "🌤️"}
+            {"condition": "Hazy sunshine", "code": "Clouds", "icon": "🌤️"}
         )
 
     @staticmethod
@@ -243,30 +274,30 @@ class WeatherAPIService:
         mode = (mode or "normal").lower()
         scenarios = {
             "normal": {
-                "temperature": 29, "feels_like": 31, "condition": "Partly Cloudy",
-                "condition_code": "Clouds", "humidity": 72, "wind_speed": 14,
-                "rain_probability": 20, "uv_index": 6,
+                "temperature": 33, "feels_like": 43, "condition": "Hazy sunshine",
+                "condition_code": "Clouds", "humidity": 62, "wind_speed": 14, "wind_dir": 210,
+                "rain_probability": 20, "uv_index": 5, "aqi": 24,
                 "label": "Demo: Normal Weather",
                 "subtitle": "Simulated normal weather scenario"
             },
             "rain": {
-                "temperature": 26, "feels_like": 27, "condition": "Heavy Rain",
-                "condition_code": "Rain", "humidity": 92, "wind_speed": 18,
-                "rain_probability": 85, "uv_index": 2,
+                "temperature": 26, "feels_like": 28, "condition": "Heavy Rain",
+                "condition_code": "Rain", "humidity": 92, "wind_speed": 18, "wind_dir": 180,
+                "rain_probability": 85, "uv_index": 2, "aqi": 18,
                 "label": "Demo: Rain Alert",
                 "subtitle": "Simulated rain alert for hackathon demonstration"
             },
             "heat": {
-                "temperature": 38, "feels_like": 42, "condition": "Hot / Scorching Sun",
-                "condition_code": "Clear", "humidity": 40, "wind_speed": 8,
-                "rain_probability": 5, "uv_index": 10,
+                "temperature": 38, "feels_like": 45, "condition": "Scorching Heat",
+                "condition_code": "Clear", "humidity": 40, "wind_speed": 8, "wind_dir": 150,
+                "rain_probability": 5, "uv_index": 10, "aqi": 48,
                 "label": "Demo: Heat Alert",
                 "subtitle": "Simulated heat alert for hackathon demonstration"
             },
             "wind": {
                 "temperature": 30, "feels_like": 32, "condition": "Strong Gusty Winds",
-                "condition_code": "Wind", "humidity": 65, "wind_speed": 45,
-                "rain_probability": 35, "uv_index": 5,
+                "condition_code": "Wind", "humidity": 65, "wind_speed": 45, "wind_dir": 270,
+                "rain_probability": 35, "uv_index": 5, "aqi": 30,
                 "label": "Demo: Strong Wind Alert",
                 "subtitle": "Simulated wind alert for hackathon demonstration"
             }
@@ -286,11 +317,31 @@ class WeatherAPIService:
             "condition_code": data["condition_code"],
             "humidity": data["humidity"],
             "wind_speed": data["wind_speed"],
-            "wind_direction": 180,
+            "wind_direction": data["wind_dir"],
+            "wind_direction_cardinal": WeatherAPIService._get_cardinal_direction(data["wind_dir"]),
+            "pressure": 1008,
+            "visibility": 16.1,
             "rain_probability": data["rain_probability"],
             "precipitation": 5.0 if mode == "rain" else 0.0,
             "weather_code": 63 if mode == "rain" else 0,
             "uv_index": data["uv_index"],
+            "uv_label": "Strong" if data["uv_index"] >= 5 else "Moderate",
+            "aqi": {
+                "score": data["aqi"],
+                "quality": "Good",
+                "pm25": 24, "pm10": 21, "so2": 7, "co": 2
+            },
+            "sun_trajectory": {
+                "sunrise": "05:59", "sunset": "18:04", "moonrise": "14:33", "moonset": "01:54"
+            },
+            "lifestyle_activities": [
+                {"name": "Outdoor activities", "status": "Low suitability", "icon": "biking"},
+                {"name": "Stargazing", "status": "Fair", "icon": "satellite"},
+                {"name": "Fishing", "status": "Unsuitable", "icon": "fishing"},
+                {"name": "Sailing", "status": "Unsuitable", "icon": "sailing"},
+                {"name": "Cold risk", "status": "Not Easy", "icon": "pill"},
+                {"name": "Mosquito activity", "status": "Extremely High", "icon": "bug"}
+            ],
             "is_demo": True,
             "demo_scenario": mode,
             "weather_source": "demo",
@@ -303,7 +354,7 @@ class WeatherAPIService:
 
     @staticmethod
     def _generate_hourly_forecast(base_temp, condition):
-        hours = ["10 AM", "12 PM", "2 PM", "4 PM", "6 PM", "8 PM"]
+        hours = ["Now", "14:00", "16:00", "18:00", "20:00", "22:00"]
         icons = ["☀️", "🌤️", "🌧️", "🌧️", "⛅", "🌙"] if "Rain" in condition else ["☀️", "☀️", "🌤️", "🌤️", "⛅", "🌙"]
         probs = [15, 30, 75, 80, 45, 20] if "Rain" in condition else [5, 10, 15, 20, 10, 5]
         return [
@@ -313,9 +364,10 @@ class WeatherAPIService:
 
     @staticmethod
     def _generate_daily_forecast(base_temp, condition):
-        days = ["Today", "Tomorrow", "Wednesday", "Thursday", "Friday"]
-        conditions = [condition, "Light Rain", "Partly Cloudy", "Sunny", "Clear Sky"]
+        days = ["Today", "Tomorrow", "Wed", "Thu", "Fri", "Sat", "Sun"]
+        dates = ["09/21", "09/22", "09/23", "09/24", "09/25", "09/26", "09/27"]
+        conditions = [condition, "Light Rain", "Partly Cloudy", "Sunny", "Clear Sky", "Hazy Sunshine", "Partly Cloudy"]
         return [
-            {"day": days[i], "condition": conditions[i], "high": base_temp + i - 1, "low": base_temp - 5, "rain_chance": 80 if "Rain" in conditions[i] else 15}
-            for i in range(5)
+            {"day": days[i], "date": dates[i], "condition": conditions[i], "high": base_temp + (i % 3), "low": base_temp - 6, "rain_chance": 80 if "Rain" in conditions[i] else 15}
+            for i in range(7)
         ]

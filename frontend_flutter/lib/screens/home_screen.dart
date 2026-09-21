@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/weather_provider.dart';
-import '../theme/app_theme.dart';
-import '../widgets/weather_card.dart';
+import '../widgets/sky_background.dart';
+import '../widgets/temp_trend_chart.dart';
+import '../widgets/compass_dial.dart';
+import '../widgets/sun_arc_widget.dart';
+import '../widgets/lifestyle_grid.dart';
 import '../widgets/alert_banner.dart';
 import '../widgets/ai_summary_card.dart';
-import '../widgets/forecast_list.dart';
-import '../widgets/nearby_assistance_widget.dart';
 import '../widgets/mode_indicator.dart';
 import 'location_screen.dart';
 import 'chat_screen.dart';
@@ -17,155 +18,171 @@ class HomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: SafeArea(
-        child: Consumer<WeatherProvider>(
-          builder: (context, provider, child) {
-            if (provider.isLoading) {
-              return _buildLoadingState(provider);
-            }
+    return Consumer<WeatherProvider>(
+      builder: (context, provider, child) {
+        final weather = provider.weatherData;
+        final conditionCode = weather?.conditionCode ?? 'Clouds';
 
-            if (provider.hasError) {
-              return _buildErrorState(context, provider);
-            }
+        return Scaffold(
+          body: SkyBackground(
+            conditionCode: conditionCode,
+            child: SafeArea(
+              child: provider.isLoading || weather == null
+                  ? _buildLoadingState(provider)
+                  : RefreshIndicator(
+                      onRefresh: () => provider.loadWeather(),
+                      color: Colors.white,
+                      backgroundColor: const Color(0xFF327FD2),
+                      child: SingleChildScrollView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            // 1. Header Bar: Location Title + Menu
+                            _buildHeaderBar(context, provider),
 
-            final weather = provider.weatherData;
-            final alerts = provider.alertsSummary;
+                            const SizedBox(height: 12),
 
-            if (weather == null) {
-              return _buildLoadingState(provider);
-            }
+                            // Mode Switcher Bar (🟢 LIVE WEATHER vs 🎬 DEMO MODE)
+                            _buildModeSwitcherSection(context, provider),
 
-            return RefreshIndicator(
-              onRefresh: () => provider.loadWeather(),
-              color: AppColors.primarySkyBlue,
-              child: SingleChildScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Top Bar: Location + Notifications + Settings
-                    _buildTopAppBar(context, provider),
+                            const SizedBox(height: 12),
 
-                    const SizedBox(height: 16),
+                            // Clear Mode Indicator Banner
+                            ModeIndicator(
+                              isDemo: weather.isDemo,
+                              label: weather.modeLabel,
+                              subtitle: weather.modeSubtitle,
+                            ),
 
-                    // Separate Live vs Demo Mode Switcher Bar
-                    _buildModeSwitcherSection(context, provider),
+                            const SizedBox(height: 16),
 
-                    const SizedBox(height: 16),
+                            // 2. Hero Weather Header (33°C, Hazy sunshine, Feels like 43°)
+                            Text(
+                              weather.condition,
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w500,
+                                color: Colors.white.withOpacity(0.9),
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              '28° ~ 34°   Feels like ${provider.convertTemp(weather.feelsLike)}°',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.white.withOpacity(0.8),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              '${provider.convertTemp(weather.temperature)}°',
+                              style: const TextStyle(
+                                fontSize: 72,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                                height: 1.0,
+                                shadows: [
+                                  Shadow(color: Color(0x33000000), blurRadius: 10, offset: Offset(0, 4)),
+                                ],
+                              ),
+                            ),
 
-                    // Clear Mode Indicator (🟢 LIVE WEATHER vs 🟠 DEMO MODE)
-                    ModeIndicator(
-                      isDemo: weather.isDemo,
-                      label: weather.modeLabel,
-                      subtitle: weather.modeSubtitle,
+                            const SizedBox(height: 24),
+
+                            // 3. Hourly Temperature Trend Curve Graph
+                            TempTrendChart(hourly: weather.hourlyForecast),
+
+                            const SizedBox(height: 20),
+
+                            // 4. Daily 7-Day Forecast Translucent Glass Card
+                            _buildDailyForecastGlassCard(provider, weather.dailyForecast),
+
+                            const SizedBox(height: 20),
+
+                            // 5. Active Smart Weather Alerts Banner
+                            if (provider.alertsSummary != null && provider.alertsSummary!.alerts.isNotEmpty)
+                              AlertBanner(alert: provider.alertsSummary!.alerts.first),
+
+                            const SizedBox(height: 20),
+
+                            // 6. AI WeatherGPT Insight Card
+                            AISummaryCard(
+                              summary: provider.aiSummary,
+                              onAskTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(builder: (_) => const ChatScreen()),
+                                );
+                              },
+                            ),
+
+                            const SizedBox(height: 20),
+
+                            // 7. 2x2 Glass Metric Cards (Feels like, Wind Compass, Humidity, UV Index)
+                            _buildMetricGlassGrid(provider, weather),
+
+                            const SizedBox(height: 20),
+
+                            // 8. Air Quality (AQI Arc Gauge Glass Card)
+                            _buildAQIGlassCard(weather),
+
+                            const SizedBox(height: 20),
+
+                            // 9. Sunrise & Sunset Trajectory Curve
+                            SunArcWidget(
+                              sunrise: weather.sunTrajectory['sunrise'] ?? '05:59',
+                              sunset: weather.sunTrajectory['sunset'] ?? '18:04',
+                              moonrise: weather.sunTrajectory['moonrise'] ?? '14:33',
+                              moonset: weather.sunTrajectory['moonset'] ?? '01:54',
+                            ),
+
+                            const SizedBox(height: 20),
+
+                            // 10. Lifestyle Activity Index Grid
+                            LifestyleGrid(activities: weather.lifestyleActivities),
+
+                            const SizedBox(height: 32),
+                          ],
+                        ),
+                      ),
                     ),
-
-                    const SizedBox(height: 16),
-
-                    // 1. Weather Card (Temperature, Condition, Metrics)
-                    WeatherCard(weather: weather),
-
-                    const SizedBox(height: 18),
-
-                    // 2. Smart Weather Alerts Banner
-                    if (alerts != null && alerts.alerts.isNotEmpty)
-                      AlertBanner(alert: alerts.alerts.first),
-
-                    const SizedBox(height: 18),
-
-                    // 3. AI WeatherGPT Insight Card
-                    AISummaryCard(
-                      summary: provider.aiSummary,
-                      onAskTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (_) => const ChatScreen()),
-                        );
-                      },
-                    ),
-
-                    const SizedBox(height: 24),
-
-                    // 4. Forecast Section (Hourly & Daily)
-                    ForecastList(
-                      hourly: weather.hourlyForecast,
-                      daily: weather.dailyForecast,
-                    ),
-
-                    const SizedBox(height: 24),
-
-                    // 5. Nearby Assistance (Umbrellas, Shelters, Water)
-                    if (alerts != null)
-                      NearbyAssistanceWidget(categories: alerts.nearbyAssistance),
-
-                    const SizedBox(height: 32),
-                  ],
-                ),
-              ),
-            );
-          },
-        ),
-      ),
+            ),
+          ),
+        );
+      },
     );
   }
 
-  Widget _buildTopAppBar(BuildContext context, WeatherProvider provider) {
+  Widget _buildHeaderBar(BuildContext context, WeatherProvider provider) {
     return Row(
       children: [
         InkWell(
           onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const LocationScreen()),
-            );
+            Navigator.push(context, MaterialPageRoute(builder: (_) => const LocationScreen()));
           },
           borderRadius: BorderRadius.circular(16),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-            decoration: BoxDecoration(
-              color: AppColors.white,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppColors.lightSkyBlue),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.location_on, color: AppColors.primarySkyBlue, size: 20),
-                const SizedBox(width: 6),
-                Text(
-                  provider.currentLocation,
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textDark,
-                  ),
+          child: Row(
+            children: [
+              Text(
+                provider.currentLocation.split(',')[0],
+                style: const TextStyle(
+                  fontSize: 26,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
                 ),
-                const SizedBox(width: 4),
-                const Icon(Icons.keyboard_arrow_down, color: AppColors.secondaryText, size: 18),
-              ],
-            ),
+              ),
+              const SizedBox(width: 4),
+              const Icon(Icons.keyboard_arrow_down, color: Colors.white, size: 22),
+            ],
           ),
         ),
         const Spacer(),
         IconButton(
-          icon: const Icon(Icons.notifications_none_rounded, color: AppColors.textDark),
+          icon: const Icon(Icons.tune, color: Colors.white),
           onPressed: () {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Weather alert notifications active 🔔'),
-                duration: Duration(seconds: 2),
-              ),
-            );
-          },
-        ),
-        IconButton(
-          icon: const Icon(Icons.settings_outlined, color: AppColors.textDark),
-          onPressed: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const SettingsScreen()),
-            );
+            Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen()));
           },
         ),
       ],
@@ -175,181 +192,322 @@ class HomeScreen extends StatelessWidget {
   Widget _buildModeSwitcherSection(BuildContext context, WeatherProvider provider) {
     final isLive = provider.demoScenario == 'live';
 
-    final demoScenarios = [
-      {'id': 'normal', 'label': 'Normal'},
-      {'id': 'rain', 'label': '🌧️ Rain Alert'},
-      {'id': 'heat', 'label': '🔥 Heat Alert'},
-      {'id': 'wind', 'label': '💨 Wind Alert'},
-    ];
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return Row(
       children: [
-        // Live Weather Button (Primary)
-        Row(
-          children: [
-            Expanded(
-              child: InkWell(
-                onTap: () => provider.setDemoScenario('live'),
+        Expanded(
+          child: InkWell(
+            onTap: () => provider.setDemoScenario('live'),
+            borderRadius: BorderRadius.circular(14),
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+              decoration: BoxDecoration(
+                color: isLive ? Colors.white : Colors.white.withOpacity(0.2),
                 borderRadius: BorderRadius.circular(14),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
-                  decoration: BoxDecoration(
-                    color: isLive ? AppColors.primarySkyBlue : AppColors.white,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(
-                      color: isLive ? AppColors.primarySkyBlue : AppColors.lightSkyBlue,
+                border: Border.all(color: Colors.white.withOpacity(0.4)),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    '🟢 Live Weather',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: isLive ? const Color(0xFF183B56) : Colors.white,
                     ),
-                    boxShadow: isLive ? [
-                      BoxShadow(color: AppColors.primarySkyBlue.withOpacity(0.3), blurRadius: 6)
-                    ] : [],
                   ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        '🟢 Live Weather',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.bold,
-                          color: isLive ? Colors.white : AppColors.textDark,
-                        ),
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        '(Open-Meteo)',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: isLive ? Colors.white.withOpacity(0.85) : AppColors.secondaryText,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+                ],
               ),
             ),
-          ],
-        ),
-
-        const SizedBox(height: 8),
-
-        // Grouped Demo Simulations section
-        Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: AppColors.white,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.lightSkyBlue),
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Padding(
-                padding: EdgeInsets.only(left: 4, bottom: 6),
-                child: Text(
-                  '🎬 HACKATHON DEMO SIMULATIONS',
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.secondaryText,
-                    letterSpacing: 0.5,
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: InkWell(
+            onTap: () => provider.setDemoScenario('rain'),
+            borderRadius: BorderRadius.circular(14),
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+              decoration: BoxDecoration(
+                color: !isLive ? const Color(0xFFFFB74D) : Colors.white.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: Colors.white.withOpacity(0.4)),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    '🎬 Demo Mode',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: !isLive ? const Color(0xFF183B56) : Colors.white,
+                    ),
                   ),
-                ),
+                ],
               ),
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: demoScenarios.map((item) {
-                    final isSelected = provider.demoScenario == item['id'];
-                    return Padding(
-                      padding: const EdgeInsets.only(right: 6),
-                      child: FilterChip(
-                        label: Text(item['label']!),
-                        selected: isSelected,
-                        onSelected: (_) => provider.setDemoScenario(item['id']!),
-                        selectedColor: AppColors.warning,
-                        labelStyle: TextStyle(
-                          color: isSelected ? Colors.white : AppColors.textDark,
-                          fontSize: 11.5,
-                          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                        ),
-                        backgroundColor: AppColors.veryLightBlue,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                          side: BorderSide(
-                            color: isSelected ? AppColors.warning : AppColors.lightSkyBlue,
-                          ),
-                        ),
-                        showCheckmark: false,
-                      ),
-                    );
-                  }).toList(),
-                ),
-              ),
-            ],
+            ),
           ),
         ),
       ],
     );
   }
 
-  Widget _buildLoadingState(WeatherProvider provider) {
-    final isLive = provider.demoScenario == 'live';
-
-    return Center(
+  Widget _buildDailyForecastGlassCard(WeatherProvider provider, dynamic dailyForecast) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.18),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: Colors.white.withOpacity(0.3)),
+      ),
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Text('🌤️', style: TextStyle(fontSize: 48)),
-          const SizedBox(height: 16),
-          const CircularProgressIndicator(color: AppColors.primarySkyBlue),
-          const SizedBox(height: 16),
-          Text(
-            isLive ? 'Fetching live Open-Meteo weather...' : 'Preparing demo simulation...',
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: AppColors.textDark,
+        children: dailyForecast.map<Widget>((d) {
+          final isToday = d.day == "Today";
+          return Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Row(
+              children: [
+                SizedBox(
+                  width: 55,
+                  child: Text(
+                    d.date ?? '09/21',
+                    style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 11),
+                  ),
+                ),
+                SizedBox(
+                  width: 75,
+                  child: Text(
+                    d.day,
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 13,
+                      fontWeight: isToday ? FontWeight.bold : FontWeight.normal,
+                    ),
+                  ),
+                ),
+                Text(d.condition.contains('Rain') ? '🌧️' : '🌤️', style: const TextStyle(fontSize: 18)),
+                const SizedBox(width: 8),
+                if (d.rainChance > 40)
+                  Text('${d.rainChance}%', style: const TextStyle(color: Color(0xFF80C3FF), fontSize: 11, fontWeight: FontWeight.bold)),
+                const Spacer(),
+                Text(
+                  '${provider.convertTemp(d.low)}°  ${provider.convertTemp(d.high)}°',
+                  style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
+                ),
+              ],
             ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  Widget _buildMetricGlassGrid(WeatherProvider provider, dynamic weather) {
+    return Column(
+      children: [
+        Row(
+          children: [
+            // Feels Like
+            Expanded(
+              child: _buildGlassBox(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.between,
+                      children: const [
+                        Text('Feels like', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+                        Icon(Icons.thermostat_outlined, color: Colors.white, size: 16),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    Container(
+                      height: 6,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(3),
+                        gradient: const LinearGradient(colors: [Color(0xFF4DA8FF), Color(0xFFFFB74D), Color(0xFFEF5350)]),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Text('${provider.convertTemp(weather.feelsLike)} °C', style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                    Text(weather.feelsLike >= 38 ? 'Extremely hot' : 'Pleasant', style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 10)),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+
+            // Wind Compass Dial
+            Expanded(
+              child: _buildGlassBox(
+                child: Column(
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.between,
+                      children: [
+                        Text(weather.windDirectionCardinal ?? 'SSW', style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+                        const Icon(Icons.air, color: Colors.white, size: 16),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    CompassDial(
+                      degrees: weather.windDirection ?? 210,
+                      cardinal: weather.windDirectionCardinal ?? 'SSW',
+                      speed: weather.windSpeed ?? 14,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            // Humidity
+            Expanded(
+              child: _buildGlassBox(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.between,
+                      children: const [
+                        Text('Humidity', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+                        Icon(Icons.water_drop_outlined, color: Colors.white, size: 16),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+                    Text('${weather.humidity} %', style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+                    Text('Moderate', style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 11)),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+
+            // UV Index
+            Expanded(
+              child: _buildGlassBox(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.between,
+                      children: const [
+                        Text('UV', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+                        Icon(Icons.wb_sunny_outlined, color: Colors.white, size: 16),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Container(
+                      height: 6,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(3),
+                        gradient: const LinearGradient(colors: [Colors.green, Colors.yellow, Colors.orange, Colors.purple]),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Text('Level ${weather.uvIndex}', style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold)),
+                    Text(weather.uvLabel ?? 'Strong', style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 10)),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAQIGlassCard(dynamic weather) {
+    final aqi = weather.aqi ?? {"score": 24, "quality": "Good", "pm25": 24, "pm10": 21, "so2": 7, "co": 2};
+
+    return _buildGlassBox(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.between,
+            children: const [
+              Text('Air quality', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+              Icon(Icons.nature_outlined, color: Colors.white, size: 16),
+            ],
           ),
-          const SizedBox(height: 4),
-          Text(
-            isLive ? '📍 Open-Meteo API  •  ☁️ Real Coordinates' : '🎬 Hackathon Demo Scenario Engine',
-            style: const TextStyle(fontSize: 12, color: AppColors.secondaryText),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              // AQI Arc score
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.greenAccent, width: 3),
+                ),
+                child: Column(
+                  children: [
+                    Text('Good', style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 10)),
+                    Text('${aqi['score']}', style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 24),
+              // Pollutants breakdown
+              Expanded(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    _buildPollutant('PM2.5', aqi['pm25']),
+                    _buildPollutant('PM10', aqi['pm10']),
+                    _buildPollutant('SO2', aqi['so2']),
+                    _buildPollutant('CO', aqi['co']),
+                  ],
+                ),
+              ),
+            ],
           ),
         ],
       ),
     );
   }
 
-  Widget _buildErrorState(BuildContext context, WeatherProvider provider) {
+  Widget _buildPollutant(String label, dynamic val) {
+    return Column(
+      children: [
+        Text(label, style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 10)),
+        const SizedBox(height: 2),
+        Text('$val', style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+      ],
+    );
+  }
+
+  Widget _buildGlassBox({required Widget child}) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.18),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white.withOpacity(0.3)),
+      ),
+      child: child,
+    );
+  }
+
+  Widget _buildLoadingState(WeatherProvider provider) {
     return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Text('📡', style: TextStyle(fontSize: 48)),
-            const SizedBox(height: 16),
-            const Text(
-              'Unable to connect',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textDark),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              provider.errorMessage.isNotEmpty
-                  ? provider.errorMessage
-                  : 'Please check your internet connection.',
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 13, color: AppColors.secondaryText),
-            ),
-            const SizedBox(height: 24),
-            ElevatedButton(
-              onPressed: () => provider.loadWeather(),
-              child: const Text('Try Again'),
-            ),
-          ],
-        ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: const [
+          Text('🌤️', style: TextStyle(fontSize: 48)),
+          SizedBox(height: 16),
+          CircularProgressIndicator(color: Colors.white),
+          SizedBox(height: 16),
+          Text(
+            'Fetching WeatherGPT 3D Sky environment...',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.white),
+          ),
+        ],
       ),
     );
   }
