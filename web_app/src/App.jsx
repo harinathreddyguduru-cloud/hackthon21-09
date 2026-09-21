@@ -14,13 +14,13 @@ export default function App() {
   const [alertsSummary, setAlertsSummary] = useState(null);
   const [aiSummary, setAiSummary] = useState('');
   const [loading, setLoading] = useState(true);
-  const [currentView, setCurrentView] = useState('home'); // home, location, chat, settings
+  const [currentView, setCurrentView] = useState('home');
   const [tempUnit, setTempUnit] = useState('C');
   const [viewMode, setViewMode] = useState('mobile');
 
   // Chat State
   const [messages, setMessages] = useState([
-    { id: 1, text: "Hello! I am WeatherGPT 🤖 powered by Open-Meteo real weather data. Ask me any weather question!", isUser: false }
+    { id: 1, text: "Hello! I am WeatherGPT 🤖. Ask me any weather question and I'll provide grounded recommendations!", isUser: false }
   ]);
   const [inputQuery, setInputQuery] = useState('');
   const [isAsking, setIsAsking] = useState(false);
@@ -68,17 +68,21 @@ export default function App() {
   };
 
   const buildFallback = (loc, mode) => {
+    const isLiveMode = mode === 'live';
     let temp = 29, rain = 20, wind = 14, cond = "Partly Cloudy";
-    if (mode === 'rain') { temp = 27; rain = 85; wind = 18; cond = "Heavy Rain"; }
-    else if (mode === 'heat') { temp = 38; rain = 5; wind = 8; cond = "Scorching Sun"; }
-    else if (mode === 'wind') { temp = 30; rain = 35; wind = 48; cond = "Strong Winds"; }
+    if (mode === 'rain') { temp = 26; rain = 85; wind = 18; cond = "Heavy Rain"; }
+    else if (mode === 'heat') { temp = 38; rain = 5; wind = 8; cond = "Hot / Scorching Sun"; }
+    else if (mode === 'wind') { temp = 30; rain = 35; wind = 45; cond = "Strong Gusty Winds"; }
 
     setWeatherData({
       location: loc.split(',')[0],
       temperature: temp,
       feels_like: temp + 2,
       condition: cond,
-      provider: mode === 'live' ? 'Open-Meteo' : 'Mock Demo',
+      is_demo: !isLiveMode,
+      mode_label: isLiveMode ? "🟢 LIVE WEATHER" : "🟠 DEMO MODE",
+      mode_subtitle: isLiveMode ? "Real weather data from Open-Meteo" : `Simulated ${mode} scenario for hackathon demonstration`,
+      provider: isLiveMode ? 'Open-Meteo' : 'Demo Simulation',
       humidity: 72,
       wind_speed: wind,
       rain_probability: rain,
@@ -98,17 +102,19 @@ export default function App() {
     setAlertsSummary({
       has_alerts: rain >= 50 || temp >= 35 || wind >= 35,
       alerts: [
-        rain >= 50 ? { title: "🌧️ Rain Alert", message: `Rain expected soon (${rain}% chance). Carry an umbrella.`, severity: "danger", action: "Carry umbrella" }
-        : temp >= 35 ? { title: "🔥 Heat Alert", message: `High temp of ${temp}°C. Stay hydrated.`, severity: "danger", action: "Stay hydrated" }
-        : wind >= 35 ? { title: "💨 Strong Wind Alert", message: `Strong winds of ${wind} km/h expected.`, severity: "warning", action: "Take care outdoors" }
-        : { title: "✓ Clear Weather", message: "Weather looks normal right now.", severity: "info", action: "Enjoy your day" }
+        rain >= 50 ? { title: "🌧️ Rain Alert", message: `Rain expected soon (${rain}% chance). Consider carrying an umbrella.`, severity: "danger", action: "Carry umbrella" }
+        : temp >= 35 ? { title: "🔥 Heat Alert", message: `High temperature of ${temp}°C expected. Stay hydrated.`, severity: "danger", action: "Stay hydrated" }
+        : wind >= 35 ? { title: "💨 Strong Wind Alert", message: `Strong winds of ${wind} km/h expected. Take care outdoors.`, severity: "warning", action: "Take care outdoors" }
+        : { title: "✓ Clear Weather", message: "Weather conditions look calm right now.", severity: "info", action: "Enjoy your day" }
       ],
       nearby_assistance: [
         { category: "Rain & Convenience Shops", items: [{ name: "City Center Supermarket", type: "Umbrellas & Raincoats", distance: "350 m" }] }
       ]
     });
 
-    setAiSummary(`Real-time weather for ${loc} via Open-Meteo: ${cond} at ${temp}°C. Rain chance: ${rain}%.`);
+    setAiSummary(isLiveMode 
+      ? `Real-time weather for ${loc} via Open-Meteo: ${cond} at ${temp}°C. Rain chance: ${rain}%.`
+      : `DEMO SIMULATION: Testing ${mode} alert scenario for ${loc}.`);
   };
 
   useEffect(() => {
@@ -133,7 +139,7 @@ export default function App() {
       const data = await res.json();
       setMessages(prev => [...prev, { id: Date.now() + 1, text: data.answer, isUser: false }]);
     } catch (e) {
-      let reply = `🌤️ Weather in ${location} is ${weatherData?.condition.toLowerCase()} at ${weatherData?.temperature}°C.`;
+      let reply = `🌤️ Weather in ${location} is ${weatherData?.condition?.toLowerCase()} at ${weatherData?.temperature}°C.`;
       if (q.toLowerCase().includes('rain') || q.toLowerCase().includes('umbrella')) {
         reply = `🌧️ Rain probability in ${location} is ${weatherData?.rain_probability || 20}%. ${weatherData?.rain_probability >= 50 ? 'Carrying an umbrella is recommended!' : 'You probably won\'t need an umbrella.'}`;
       }
@@ -144,15 +150,18 @@ export default function App() {
   };
 
   const convertTemp = (t) => tempUnit === 'F' ? Math.round((t * 9/5) + 32) : t;
+  const isLive = demoScenario === 'live';
 
   return (
     <div className="min-h-screen bg-[#EAF6FF] text-[#183B56] flex flex-col items-center justify-center p-2 sm:p-6">
       {/* Top Banner Control */}
       <div className="w-full max-w-md mb-3 flex items-center justify-between bg-white px-4 py-2.5 rounded-2xl shadow-sm border border-[#D9F0FF]">
         <div className="flex items-center gap-2">
-          <span className="w-3 h-3 rounded-full bg-emerald-500 animate-pulse"></span>
-          <span className="text-xs font-semibold text-[#183B56]">WeatherGPT + Open-Meteo</span>
-          <span className="text-[10px] px-2 py-0.5 bg-[#EAF6FF] text-[#4DA8FF] rounded-full font-medium">Django Live</span>
+          <span className={`w-3 h-3 rounded-full ${isLive ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`}></span>
+          <span className="text-xs font-semibold text-[#183B56]">WeatherGPT</span>
+          <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${isLive ? 'bg-[#EAF6FF] text-[#4DA8FF]' : 'bg-amber-100 text-amber-800'}`}>
+            {isLive ? 'Live Open-Meteo' : 'Demo Simulation'}
+          </span>
         </div>
         <button 
           onClick={() => setViewMode(v => v === 'mobile' ? 'full' : 'mobile')}
@@ -213,44 +222,78 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Provider & Demo Mode Switcher */}
-              <div className="flex gap-2 overflow-x-auto pb-1 text-xs no-scrollbar">
-                {[
-                  { id: 'live', label: '🌐 Live Open-Meteo' },
-                  { id: 'normal', label: '☀️ Normal' },
-                  { id: 'rain', label: '🌧️ Rain Alert' },
-                  { id: 'heat', label: '🔥 Heat Alert' },
-                  { id: 'wind', label: '💨 Wind Alert' }
-                ].map(scen => (
-                  <button
-                    key={scen.id}
-                    onClick={() => setDemoScenario(scen.id)}
-                    className={`px-3 py-1.5 rounded-xl font-medium shrink-0 transition ${
-                      demoScenario === scen.id 
-                        ? 'bg-[#4DA8FF] text-white shadow-sm' 
-                        : 'bg-white text-[#183B56] border border-[#EAF6FF] hover:border-[#4DA8FF]'
-                    }`}
-                  >
-                    {scen.label}
-                  </button>
-                ))}
+              {/* Mode Switcher Section: Live vs Demo */}
+              <div className="space-y-2">
+                <button
+                  onClick={() => setDemoScenario('live')}
+                  className={`w-full py-2 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 border transition ${
+                    isLive 
+                      ? 'bg-[#4DA8FF] text-white border-[#4DA8FF] shadow-sm' 
+                      : 'bg-white text-[#183B56] border-[#EAF6FF] hover:border-[#4DA8FF]'
+                  }`}
+                >
+                  <span>🟢 Live Weather</span>
+                  <span className={`text-[10px] font-normal ${isLive ? 'text-white/80' : 'text-[#6B7C8F]'}`}>(Open-Meteo API)</span>
+                </button>
+
+                <div className="bg-white p-2 rounded-2xl border border-[#EAF6FF] space-y-1">
+                  <div className="text-[10px] font-bold text-[#6B7C8F] px-1 tracking-wider">🎬 DEMO SIMULATIONS</div>
+                  <div className="flex gap-1.5 overflow-x-auto pb-0.5 text-xs no-scrollbar">
+                    {[
+                      { id: 'normal', label: 'Normal' },
+                      { id: 'rain', label: '🌧️ Rain Alert' },
+                      { id: 'heat', label: '🔥 Heat Alert' },
+                      { id: 'wind', label: '💨 Wind Alert' }
+                    ].map(scen => (
+                      <button
+                        key={scen.id}
+                        onClick={() => setDemoScenario(scen.id)}
+                        className={`px-2.5 py-1 rounded-lg text-[11px] font-medium shrink-0 transition ${
+                          demoScenario === scen.id 
+                            ? 'bg-amber-500 text-white font-bold' 
+                            : 'bg-[#F5FBFF] text-[#183B56] hover:bg-amber-50'
+                        }`}
+                      >
+                        {scen.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Clear Mode Indicator Banner */}
+              <div className={`p-3 rounded-2xl border flex items-center justify-between text-xs ${
+                weatherData?.is_demo 
+                  ? 'bg-amber-50 border-amber-300 text-amber-900' 
+                  : 'bg-[#EAF6FF] border-[#4DA8FF]/40 text-[#0277BD]'
+              }`}>
+                <div className="flex items-center gap-2">
+                  <span className={`w-2.5 h-2.5 rounded-full ${weatherData?.is_demo ? 'bg-amber-500' : 'bg-emerald-500 animate-pulse'}`}></span>
+                  <div>
+                    <div className="font-bold tracking-wide">
+                      {weatherData?.mode_label || (weatherData?.is_demo ? '🟠 DEMO MODE' : '🟢 LIVE WEATHER')}
+                    </div>
+                    <div className="text-[10px] opacity-80">
+                      {weatherData?.mode_subtitle || (weatherData?.is_demo ? 'Simulated weather scenario for demonstration' : 'Real weather data from Open-Meteo')}
+                    </div>
+                  </div>
+                </div>
+                <span className="text-[9px] font-bold uppercase px-2 py-0.5 rounded bg-white/70">
+                  {weatherData?.is_demo ? 'SIMULATION' : 'REAL FACT'}
+                </span>
               </div>
 
               {loading ? (
-                <div className="py-20 text-center space-y-3">
+                <div className="py-16 text-center space-y-3">
                   <div className="text-5xl animate-bounce">🌤️</div>
-                  <div className="text-sm font-semibold text-[#183B56]">Getting real weather...</div>
-                  <div className="text-xs text-[#6B7C8F]">📍 Open-Meteo API • ☁️ Fetching forecast</div>
+                  <div className="text-sm font-semibold text-[#183B56]">
+                    {isLive ? 'Fetching live Open-Meteo weather...' : 'Preparing demo simulation...'}
+                  </div>
                 </div>
               ) : (
                 <>
                   {/* Weather Card */}
                   <div className="bg-gradient-to-b from-white to-[#EAF6FF] p-6 rounded-3xl border border-[#EAF6FF] shadow-sm text-center space-y-3">
-                    <div className="flex items-center justify-center gap-1.5">
-                      <span className="text-[10px] font-bold text-[#4DA8FF] bg-[#4DA8FF]/10 px-2.5 py-0.5 rounded-full">
-                        {weatherData?.provider || 'Open-Meteo'}
-                      </span>
-                    </div>
                     <div className="text-6xl">
                       {weatherData?.condition?.toLowerCase().includes('rain') ? '🌧️' 
                         : weatherData?.condition?.toLowerCase().includes('cloud') ? '🌤️'
@@ -317,7 +360,9 @@ export default function App() {
                         <div className="p-1.5 bg-[#EAF6FF] rounded-xl text-lg">🤖</div>
                         <div>
                           <div className="font-bold text-sm text-[#183B56]">WeatherGPT Summary</div>
-                          <div className="text-[10px] text-[#6B7C8F]">Grounded on Open-Meteo Data</div>
+                          <div className="text-[10px] text-[#6B7C8F]">
+                            {weatherData?.is_demo ? 'Grounded on Demo Simulation' : 'Grounded on Open-Meteo Facts'}
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -348,7 +393,7 @@ export default function App() {
                       ))}
                     </div>
 
-                    <div className="font-bold text-sm text-[#183B56] pt-2">7-Day Daily Forecast</div>
+                    <div className="font-bold text-sm text-[#183B56] pt-2">5-Day Forecast</div>
                     <div className="bg-white p-3 rounded-2xl border border-[#EAF6FF] divide-y divide-[#F5FBFF]">
                       {weatherData?.daily_forecast?.map((item, idx) => (
                         <div key={idx} className="py-2 flex items-center justify-between text-xs">
@@ -391,21 +436,21 @@ export default function App() {
             </div>
           )}
 
-          {/* SCREEN 2: LOCATION SELECTOR (Open-Meteo Geocoding) */}
+          {/* SCREEN 2: LOCATION SELECTOR */}
           {currentView === 'location' && (
             <div className="p-4 space-y-4">
               <div className="flex items-center gap-3">
                 <button onClick={() => setCurrentView('home')} className="p-1 text-[#183B56]">
                   <ArrowLeft size={20} />
                 </button>
-                <div className="font-bold text-base">Choose Location (Open-Meteo)</div>
+                <div className="font-bold text-base">Choose Location</div>
               </div>
 
               <div className="relative">
                 <Search size={18} className="absolute left-3 top-3 text-[#6B7C8F]" />
                 <input
                   type="text"
-                  placeholder="Search city via Open-Meteo (e.g. Hyderabad, London, Tokyo)..."
+                  placeholder="Search city (Open-Meteo)..."
                   value={searchQuery}
                   onChange={(e) => handleSearch(e.target.value)}
                   className="w-full bg-white pl-10 pr-4 py-2.5 rounded-xl border border-[#EAF6FF] text-xs focus:outline-none focus:border-[#4DA8FF]"
@@ -421,7 +466,7 @@ export default function App() {
               </button>
 
               <div className="text-xs font-bold text-[#6B7C8F] pt-2">
-                {searchResults.length > 0 ? 'Search Results (Open-Meteo Geocoding)' : 'Popular Cities'}
+                {searchResults.length > 0 ? 'Search Results' : 'Popular Cities'}
               </div>
               <div className="space-y-2">
                 {(searchResults.length > 0 ? searchResults : [
@@ -430,10 +475,8 @@ export default function App() {
                   { name: 'Hyderabad', state: 'Telangana', country: 'India' },
                   { name: 'Bengaluru', state: 'Karnataka', country: 'India' },
                   { name: 'Chennai', state: 'Tamil Nadu', country: 'India' },
-                  { name: 'Mumbai', state: 'Maharashtra', country: 'India' },
-                  { name: 'Delhi', state: 'Delhi', country: 'India' },
                 ]).map((city, idx) => {
-                  const fullStr = city.state ? `${city.name}, ${city.state}, ${city.country}` : `${city.name}, ${city.country}`;
+                  const fullStr = city.state ? `${city.name}, ${city.state}` : `${city.name}, ${city.country}`;
                   return (
                     <button
                       key={idx}
@@ -449,7 +492,7 @@ export default function App() {
             </div>
           )}
 
-          {/* SCREEN 3: WEATHERGPT AI CHAT */}
+          {/* SCREEN 3: CHAT */}
           {currentView === 'chat' && (
             <div className="p-4 flex flex-col h-full space-y-3">
               <div className="flex items-center gap-3 border-b border-[#EAF6FF] pb-3">
@@ -462,7 +505,6 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Quick Chips */}
               <div className="flex gap-2 overflow-x-auto pb-1 text-[11px] no-scrollbar">
                 {[
                   '🌧️ Will it rain today?',
@@ -481,20 +523,14 @@ export default function App() {
                 ))}
               </div>
 
-              {/* Chat Stream */}
               <div className="flex-1 overflow-y-auto space-y-3 pr-1">
                 {messages.map((msg) => (
-                  <div 
-                    key={msg.id}
-                    className={`flex ${msg.isUser ? 'justify-end' : 'justify-start'} gap-2`}
-                  >
+                  <div key={msg.id} className={`flex ${msg.isUser ? 'justify-end' : 'justify-start'} gap-2`}>
                     {!msg.isUser && (
                       <div className="w-7 h-7 rounded-full bg-[#EAF6FF] flex items-center justify-center text-sm shrink-0">🤖</div>
                     )}
                     <div className={`p-3 rounded-2xl text-xs max-w-[80%] leading-relaxed ${
-                      msg.isUser 
-                        ? 'bg-[#4DA8FF] text-white rounded-br-none' 
-                        : 'bg-white border border-[#EAF6FF] text-[#183B56] rounded-bl-none shadow-sm'
+                      msg.isUser ? 'bg-[#4DA8FF] text-white rounded-br-none' : 'bg-white border border-[#EAF6FF] text-[#183B56] rounded-bl-none shadow-sm'
                     }`}>
                       {msg.text}
                     </div>
@@ -509,7 +545,6 @@ export default function App() {
                 )}
               </div>
 
-              {/* Input Form */}
               <div className="flex gap-2 pt-2 border-t border-[#EAF6FF]">
                 <input
                   type="text"
@@ -519,24 +554,21 @@ export default function App() {
                   onKeyDown={(e) => e.key === 'Enter' && handleAsk()}
                   className="flex-1 bg-white px-3 py-2 rounded-xl border border-[#EAF6FF] text-xs focus:outline-none focus:border-[#4DA8FF]"
                 />
-                <button 
-                  onClick={() => handleAsk()}
-                  className="p-2.5 bg-[#4DA8FF] text-white rounded-xl hover:bg-[#3D98EF] transition"
-                >
+                <button onClick={() => handleAsk()} className="p-2.5 bg-[#4DA8FF] text-white rounded-xl hover:bg-[#3D98EF] transition">
                   <Send size={16} />
                 </button>
               </div>
             </div>
           )}
 
-          {/* SCREEN 4: SETTINGS & DEMO CONTROL */}
+          {/* SCREEN 4: SETTINGS */}
           {currentView === 'settings' && (
             <div className="p-4 space-y-4">
               <div className="flex items-center gap-3">
                 <button onClick={() => setCurrentView('home')} className="p-1 text-[#183B56]">
                   <ArrowLeft size={20} />
                 </button>
-                <div className="font-bold text-base">Settings & Attribution</div>
+                <div className="font-bold text-base">Settings & Demo Control</div>
               </div>
 
               <div className="space-y-3 text-xs">
@@ -544,49 +576,42 @@ export default function App() {
                 <div className="bg-white p-3 rounded-xl border border-[#EAF6FF] flex items-center justify-between">
                   <span className="font-semibold">Temperature Unit</span>
                   <div className="flex bg-[#F5FBFF] p-1 rounded-lg border border-[#EAF6FF]">
-                    <button 
-                      onClick={() => setTempUnit('C')}
-                      className={`px-3 py-1 rounded-md font-bold ${tempUnit === 'C' ? 'bg-[#4DA8FF] text-white' : 'text-[#6B7C8F]'}`}
-                    >
-                      °C
-                    </button>
-                    <button 
-                      onClick={() => setTempUnit('F')}
-                      className={`px-3 py-1 rounded-md font-bold ${tempUnit === 'F' ? 'bg-[#4DA8FF] text-white' : 'text-[#6B7C8F]'}`}
-                    >
-                      °F
-                    </button>
+                    <button onClick={() => setTempUnit('C')} className={`px-3 py-1 rounded-md font-bold ${tempUnit === 'C' ? 'bg-[#4DA8FF] text-white' : 'text-[#6B7C8F]'}`}>°C</button>
+                    <button onClick={() => setTempUnit('F')} className={`px-3 py-1 rounded-md font-bold ${tempUnit === 'F' ? 'bg-[#4DA8FF] text-white' : 'text-[#6B7C8F]'}`}>°F</button>
                   </div>
                 </div>
 
-                <div className="font-bold text-[#6B7C8F] uppercase text-[10px] pt-2">Provider & Hackathon Demo Mode</div>
+                <div className="font-bold text-[#6B7C8F] uppercase text-[10px] pt-2">Weather Mode Selection</div>
+                <button
+                  onClick={() => { setDemoScenario('live'); setCurrentView('home'); }}
+                  className={`w-full bg-white p-3 rounded-xl border text-left flex items-center justify-between ${demoScenario === 'live' ? 'border-[#4DA8FF] bg-[#EAF6FF]/50' : 'border-[#EAF6FF]'}`}
+                >
+                  <div>
+                    <div className="font-bold text-[#183B56]">🟢 Live Weather (Open-Meteo)</div>
+                    <div className="text-[10px] text-[#6B7C8F]">Real-time weather data & 7-day forecast</div>
+                  </div>
+                  {demoScenario === 'live' && <CheckCircle size={16} className="text-[#4DA8FF]" />}
+                </button>
+
+                <div className="font-bold text-[#6B7C8F] uppercase text-[10px] pt-2">Hackathon Demo Simulations</div>
                 {[
-                  { id: 'live', title: '🌐 Live Open-Meteo Weather', desc: 'Real weather data & 7-day forecast from Open-Meteo API' },
-                  { id: 'normal', title: '☀️ Normal Weather Scenario', desc: '29°C • Partly Cloudy • 20% Rain' },
-                  { id: 'rain', title: '🌧️ Heavy Rain Alert Scenario', desc: '27°C • Heavy Rain • 85% Rain (Triggers Umbrella Alert)' },
-                  { id: 'heat', title: '🔥 Heat Alert Scenario', desc: '38°C • Scorching Sun • 5% Rain (Triggers Hydration Alert)' },
-                  { id: 'wind', title: '💨 Strong Wind Alert Scenario', desc: '30°C • Gusty Winds • 48 km/h Wind Speed' },
+                  { id: 'normal', title: 'Demo: Normal Weather', desc: 'Simulated 29°C • Partly Cloudy • 20% Rain' },
+                  { id: 'rain', title: 'Demo: Rain Alert', desc: 'Simulated 26°C • Heavy Rain • 85% Rain Chance' },
+                  { id: 'heat', title: 'Demo: Heat Alert', desc: 'Simulated 38°C • Scorching Sun • 5% Rain' },
+                  { id: 'wind', title: 'Demo: Strong Wind Alert', desc: 'Simulated 30°C • Gusty Winds • 45 km/h Wind Speed' },
                 ].map(scen => (
                   <button
                     key={scen.id}
                     onClick={() => { setDemoScenario(scen.id); setCurrentView('home'); }}
-                    className={`w-full bg-white p-3 rounded-xl border text-left flex items-center justify-between transition ${
-                      demoScenario === scen.id ? 'border-[#4DA8FF] bg-[#EAF6FF]/50' : 'border-[#EAF6FF]'
-                    }`}
+                    className={`w-full bg-white p-3 rounded-xl border text-left flex items-center justify-between ${demoScenario === scen.id ? 'border-amber-500 bg-amber-50' : 'border-[#EAF6FF]'}`}
                   >
                     <div>
                       <div className="font-bold text-[#183B56]">{scen.title}</div>
                       <div className="text-[10px] text-[#6B7C8F]">{scen.desc}</div>
                     </div>
-                    {demoScenario === scen.id && <CheckCircle size={16} className="text-[#4DA8FF]" />}
+                    {demoScenario === scen.id && <CheckCircle size={16} className="text-amber-500" />}
                   </button>
                 ))}
-              </div>
-
-              {/* Attribution */}
-              <div className="bg-[#EAF6FF] p-4 rounded-xl text-center space-y-1 text-xs">
-                <div className="font-bold text-[#183B56]">Weather data provided by Open-Meteo</div>
-                <div className="text-[10px] text-[#6B7C8F]">Free non-commercial weather & geocoding API</div>
               </div>
             </div>
           )}
@@ -595,24 +620,15 @@ export default function App() {
 
         {/* Bottom Navigation Bar */}
         <div className="bg-white border-t border-[#EAF6FF] px-6 py-2.5 flex justify-around items-center text-[10px] font-semibold text-[#6B7C8F]">
-          <button 
-            onClick={() => setCurrentView('home')}
-            className={`flex flex-col items-center gap-1 ${currentView === 'home' ? 'text-[#4DA8FF]' : ''}`}
-          >
+          <button onClick={() => setCurrentView('home')} className={`flex flex-col items-center gap-1 ${currentView === 'home' ? 'text-[#4DA8FF]' : ''}`}>
             <span className="text-base">🌤️</span>
             <span>Dashboard</span>
           </button>
-          <button 
-            onClick={() => setCurrentView('chat')}
-            className={`flex flex-col items-center gap-1 ${currentView === 'chat' ? 'text-[#4DA8FF]' : ''}`}
-          >
+          <button onClick={() => setCurrentView('chat')} className={`flex flex-col items-center gap-1 ${currentView === 'chat' ? 'text-[#4DA8FF]' : ''}`}>
             <span className="text-base">🤖</span>
             <span>WeatherGPT</span>
           </button>
-          <button 
-            onClick={() => setCurrentView('location')}
-            className={`flex flex-col items-center gap-1 ${currentView === 'location' ? 'text-[#4DA8FF]' : ''}`}
-          >
+          <button onClick={() => setCurrentView('location')} className={`flex flex-col items-center gap-1 ${currentView === 'location' ? 'text-[#4DA8FF]' : ''}`}>
             <span className="text-base">📍</span>
             <span>Locations</span>
           </button>

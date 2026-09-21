@@ -15,17 +15,21 @@ class AIService:
         condition = weather_data.get('condition', 'Partly Cloudy')
         rain_prob = weather_data.get('rain_probability', 20)
         wind_speed = weather_data.get('wind_speed', 10)
+        is_demo = weather_data.get('is_demo', False)
         
+        context_prefix = "DEMO SIMULATION CONTEXT: This is a simulated weather scenario for presentation testing." if is_demo else "LIVE WEATHER CONTEXT: Real-time weather data from Open-Meteo."
+
         prompt = f"""
         You are WeatherGPT, a helpful AI weather assistant.
-        Given this ACTUAL weather data for {location}:
+        [{context_prefix}]
+        Weather data for {location}:
         - Temperature: {temp}°C (Feels like {weather_data.get('feels_like', temp)}°C)
         - Condition: {condition}
         - Rain probability: {rain_prob}%
         - Wind speed: {wind_speed} km/h
         - Humidity: {weather_data.get('humidity', 70)}%
 
-        Write a concise, 2-sentence executive summary for the user explaining what to expect today and what action to take (e.g. carry umbrella, wear light clothes, stay hydrated, drive safely).
+        Write a concise 2-sentence executive summary explaining what to expect and what action to take (e.g. carry umbrella, stay hydrated, drive safely).
         Do NOT invent any weather data. Use only the provided numbers.
         """
 
@@ -62,9 +66,13 @@ class AIService:
         wind_speed = weather_data.get('wind_speed', 10)
         humidity = weather_data.get('humidity', 70)
         forecast = weather_data.get('daily_forecast', [])
+        is_demo = weather_data.get('is_demo', False)
+
+        context_prefix = "DEMO SIMULATION CONTEXT: This is a simulated weather scenario for hackathon demonstration." if is_demo else "LIVE WEATHER CONTEXT: Real weather facts from Open-Meteo."
 
         prompt = f"""
         You are WeatherGPT, a smart, friendly weather assistant.
+        [{context_prefix}]
         Answer the user's question accurately using ONLY this official weather data:
         - Location: {location}
         - Temperature: {temp}°C (Feels like: {weather_data.get('feels_like', temp)}°C)
@@ -96,7 +104,6 @@ class AIService:
             except Exception as e:
                 print(f"Gemini API Q&A error: {e}. Using fallback Q&A.")
 
-        # Grounded fallback Q&A logic based on query intent
         query_lower = user_query.lower()
 
         if "rain" in query_lower or "umbrella" in query_lower:

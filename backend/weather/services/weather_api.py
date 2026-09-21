@@ -4,10 +4,11 @@ from django.conf import settings
 
 class WeatherAPIService:
     """
-    Open-Meteo Real Weather & Geocoding Service.
+    Open-Meteo Real Weather & Geocoding Service with Hackathon Demo Engine.
     
     Provides real weather observations and 7-day forecasts from Open-Meteo API
-    without requiring any API key. Maintains demo mock scenarios for hackathon presentations.
+    for Live Weather mode, and simulated demo scenarios for Hackathon presentations.
+    Both modes pass through the exact same Django Alert Engine.
     """
 
     WMO_CODES = {
@@ -45,8 +46,8 @@ class WeatherAPIService:
     def get_weather(location_name="Guntur, India", lat=None, lon=None, demo_mode=None):
         """
         Main entry point for weather retrieval.
-        If demo_mode is a mock scenario ('normal', 'rain', 'heat', 'wind'), return demo mock data.
-        Otherwise, fetch live real weather data from Open-Meteo.
+        - If demo_mode is 'normal', 'rain', 'heat', or 'wind': returns simulated demo data.
+        - Otherwise (demo_mode is None or 'live'): fetches real weather data from Open-Meteo API.
         """
         demo = (demo_mode or '').lower()
         if demo in ['normal', 'rain', 'heat', 'wind']:
@@ -54,7 +55,6 @@ class WeatherAPIService:
 
         # Default fallback coordinates for Guntur if not supplied
         if lat is None or lon is None:
-            # Geocode location string using Open-Meteo Geocoding API
             geo = WeatherAPIService.geocode_city(location_name)
             if geo:
                 lat = geo[0]['lat']
@@ -66,8 +66,8 @@ class WeatherAPIService:
         try:
             return WeatherAPIService.fetch_open_meteo_weather(lat, lon, location_name)
         except Exception as e:
-            print(f"Open-Meteo API fetch failed: {e}. Returning mock fallback.")
-            return WeatherAPIService._get_mock_weather(location_name, 'normal')
+            print(f"Open-Meteo API fetch failed ({e}). Returning live fallback.")
+            return WeatherAPIService.fetch_open_meteo_weather(16.3067, 80.4365, "Guntur")
 
     @staticmethod
     def fetch_open_meteo_weather(lat, lon, location_name):
@@ -95,7 +95,6 @@ class WeatherAPIService:
     def geocode_city(query):
         """
         Geocodes a city query using Open-Meteo Geocoding API.
-        Returns list of standardized city objects.
         """
         if not query or len(query.strip()) == 0:
             return []
@@ -151,7 +150,6 @@ class WeatherAPIService:
         condition = wmo_info['condition']
         condition_code = wmo_info['code']
 
-        # Determine rain probability from current or first hourly forecast
         hourly_probs = hourly_data.get('precipitation_probability', [])
         rain_prob = hourly_probs[0] if hourly_probs else (80 if precipitation > 0 else 20)
 
@@ -163,7 +161,6 @@ class WeatherAPIService:
         hourly_forecast = []
         for i in range(min(6, len(hourly_times))):
             h_time_str = hourly_times[i]
-            # Format time string e.g. "2026-09-21T10:00" -> "10 AM"
             time_part = h_time_str.split('T')[-1][:5] if 'T' in h_time_str else h_time_str
             try:
                 hour = int(time_part.split(':')[0])
@@ -225,7 +222,10 @@ class WeatherAPIService:
             "precipitation": precipitation,
             "weather_code": weather_code,
             "uv_index": 5,
-            "is_mock": False,
+            "is_demo": False,
+            "weather_source": "open_meteo",
+            "mode_label": "🟢 LIVE WEATHER",
+            "mode_subtitle": "Real weather data from Open-Meteo",
             "provider": "Open-Meteo",
             "hourly_forecast": hourly_forecast,
             "daily_forecast": daily_forecast
@@ -245,22 +245,30 @@ class WeatherAPIService:
             "normal": {
                 "temperature": 29, "feels_like": 31, "condition": "Partly Cloudy",
                 "condition_code": "Clouds", "humidity": 72, "wind_speed": 14,
-                "rain_probability": 20, "uv_index": 6
+                "rain_probability": 20, "uv_index": 6,
+                "label": "Demo: Normal Weather",
+                "subtitle": "Simulated normal weather scenario"
             },
             "rain": {
-                "temperature": 27, "feels_like": 28, "condition": "Heavy Rain expected",
+                "temperature": 26, "feels_like": 27, "condition": "Heavy Rain",
                 "condition_code": "Rain", "humidity": 92, "wind_speed": 18,
-                "rain_probability": 85, "uv_index": 2
+                "rain_probability": 85, "uv_index": 2,
+                "label": "Demo: Rain Alert",
+                "subtitle": "Simulated rain alert for hackathon demonstration"
             },
             "heat": {
-                "temperature": 38, "feels_like": 42, "condition": "Scorching Sun",
+                "temperature": 38, "feels_like": 42, "condition": "Hot / Scorching Sun",
                 "condition_code": "Clear", "humidity": 40, "wind_speed": 8,
-                "rain_probability": 5, "uv_index": 10
+                "rain_probability": 5, "uv_index": 10,
+                "label": "Demo: Heat Alert",
+                "subtitle": "Simulated heat alert for hackathon demonstration"
             },
             "wind": {
                 "temperature": 30, "feels_like": 32, "condition": "Strong Gusty Winds",
-                "condition_code": "Wind", "humidity": 65, "wind_speed": 48,
-                "rain_probability": 35, "uv_index": 5
+                "condition_code": "Wind", "humidity": 65, "wind_speed": 45,
+                "rain_probability": 35, "uv_index": 5,
+                "label": "Demo: Strong Wind Alert",
+                "subtitle": "Simulated wind alert for hackathon demonstration"
             }
         }
         
@@ -278,11 +286,17 @@ class WeatherAPIService:
             "condition_code": data["condition_code"],
             "humidity": data["humidity"],
             "wind_speed": data["wind_speed"],
+            "wind_direction": 180,
             "rain_probability": data["rain_probability"],
+            "precipitation": 5.0 if mode == "rain" else 0.0,
+            "weather_code": 63 if mode == "rain" else 0,
             "uv_index": data["uv_index"],
-            "is_mock": True,
+            "is_demo": True,
             "demo_scenario": mode,
-            "provider": "Mock Demo",
+            "weather_source": "demo",
+            "mode_label": "🟠 DEMO MODE",
+            "mode_subtitle": data["subtitle"],
+            "provider": f"Simulated ({data['label']})",
             "hourly_forecast": WeatherAPIService._generate_hourly_forecast(data["temperature"], data["condition_code"]),
             "daily_forecast": WeatherAPIService._generate_daily_forecast(data["temperature"], data["condition_code"])
         }

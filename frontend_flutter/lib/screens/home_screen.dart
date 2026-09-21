@@ -7,6 +7,7 @@ import '../widgets/alert_banner.dart';
 import '../widgets/ai_summary_card.dart';
 import '../widgets/forecast_list.dart';
 import '../widgets/nearby_assistance_widget.dart';
+import '../widgets/mode_indicator.dart';
 import 'location_screen.dart';
 import 'chat_screen.dart';
 import 'settings_screen.dart';
@@ -21,7 +22,7 @@ class HomeScreen extends StatelessWidget {
         child: Consumer<WeatherProvider>(
           builder: (context, provider, child) {
             if (provider.isLoading) {
-              return _buildLoadingState();
+              return _buildLoadingState(provider);
             }
 
             if (provider.hasError) {
@@ -32,7 +33,7 @@ class HomeScreen extends StatelessWidget {
             final alerts = provider.alertsSummary;
 
             if (weather == null) {
-              return _buildLoadingState();
+              return _buildLoadingState(provider);
             }
 
             return RefreshIndicator(
@@ -44,13 +45,22 @@ class HomeScreen extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Top Bar: Location + Notification Bell + Settings
+                    // Top Bar: Location + Notifications + Settings
                     _buildTopAppBar(context, provider),
 
                     const SizedBox(height: 16),
 
-                    // Demo Mode / Provider Switcher Bar
-                    _buildDemoModeChips(context, provider),
+                    // Separate Live vs Demo Mode Switcher Bar
+                    _buildModeSwitcherSection(context, provider),
+
+                    const SizedBox(height: 16),
+
+                    // Clear Mode Indicator (🟢 LIVE WEATHER vs 🟠 DEMO MODE)
+                    ModeIndicator(
+                      isDemo: weather.isDemo,
+                      label: weather.modeLabel,
+                      subtitle: weather.modeSubtitle,
+                    ),
 
                     const SizedBox(height: 16),
 
@@ -59,7 +69,7 @@ class HomeScreen extends StatelessWidget {
 
                     const SizedBox(height: 18),
 
-                    // 2. Smart Weather Alerts Banner (if any)
+                    // 2. Smart Weather Alerts Banner
                     if (alerts != null && alerts.alerts.isNotEmpty)
                       AlertBanner(alert: alerts.alerts.first),
 
@@ -162,72 +172,150 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildDemoModeChips(BuildContext context, WeatherProvider provider) {
-    final scenarios = [
-      {'id': 'live', 'label': '🌐 Live Open-Meteo'},
-      {'id': 'normal', 'label': '☀️ Normal'},
+  Widget _buildModeSwitcherSection(BuildContext context, WeatherProvider provider) {
+    final isLive = provider.demoScenario == 'live';
+
+    final demoScenarios = [
+      {'id': 'normal', 'label': 'Normal'},
       {'id': 'rain', 'label': '🌧️ Rain Alert'},
       {'id': 'heat', 'label': '🔥 Heat Alert'},
       {'id': 'wind', 'label': '💨 Wind Alert'},
     ];
 
-    return SizedBox(
-      height: 36,
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        itemCount: scenarios.length,
-        itemBuilder: (context, index) {
-          final item = scenarios[index];
-          final isSelected = provider.demoScenario == item['id'];
-
-          return Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: FilterChip(
-              label: Text(item['label']!),
-              selected: isSelected,
-              onSelected: (_) => provider.setDemoScenario(item['id']!),
-              selectedColor: AppColors.primarySkyBlue,
-              labelStyle: TextStyle(
-                color: isSelected ? AppColors.white : AppColors.textDark,
-                fontSize: 12,
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-              ),
-              backgroundColor: AppColors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-                side: BorderSide(
-                  color: isSelected ? AppColors.primarySkyBlue : AppColors.lightSkyBlue,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Live Weather Button (Primary)
+        Row(
+          children: [
+            Expanded(
+              child: InkWell(
+                onTap: () => provider.setDemoScenario('live'),
+                borderRadius: BorderRadius.circular(14),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+                  decoration: BoxDecoration(
+                    color: isLive ? AppColors.primarySkyBlue : AppColors.white,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: isLive ? AppColors.primarySkyBlue : AppColors.lightSkyBlue,
+                    ),
+                    boxShadow: isLive ? [
+                      BoxShadow(color: AppColors.primarySkyBlue.withOpacity(0.3), blurRadius: 6)
+                    ] : [],
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        '🟢 Live Weather',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: isLive ? Colors.white : AppColors.textDark,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        '(Open-Meteo)',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: isLive ? Colors.white.withOpacity(0.85) : AppColors.secondaryText,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-              showCheckmark: false,
             ),
-          );
-        },
-      ),
+          ],
+        ),
+
+        const SizedBox(height: 8),
+
+        // Grouped Demo Simulations section
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: AppColors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.lightSkyBlue),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Padding(
+                padding: EdgeInsets.only(left: 4, bottom: 6),
+                child: Text(
+                  '🎬 HACKATHON DEMO SIMULATIONS',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.secondaryText,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ),
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: demoScenarios.map((item) {
+                    final isSelected = provider.demoScenario == item['id'];
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 6),
+                      child: FilterChip(
+                        label: Text(item['label']!),
+                        selected: isSelected,
+                        onSelected: (_) => provider.setDemoScenario(item['id']!),
+                        selectedColor: AppColors.warning,
+                        labelStyle: TextStyle(
+                          color: isSelected ? Colors.white : AppColors.textDark,
+                          fontSize: 11.5,
+                          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                        ),
+                        backgroundColor: AppColors.veryLightBlue,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          side: BorderSide(
+                            color: isSelected ? AppColors.warning : AppColors.lightSkyBlue,
+                          ),
+                        ),
+                        showCheckmark: false,
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
-  Widget _buildLoadingState() {
+  Widget _buildLoadingState(WeatherProvider provider) {
+    final isLive = provider.demoScenario == 'live';
+
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
-        children: const [
-          Text('🌤️', style: TextStyle(fontSize: 48)),
-          SizedBox(height: 16),
-          CircularProgressIndicator(color: AppColors.primarySkyBlue),
-          SizedBox(height: 16),
+        children: [
+          const Text('🌤️', style: TextStyle(fontSize: 48)),
+          const SizedBox(height: 16),
+          const CircularProgressIndicator(color: AppColors.primarySkyBlue),
+          const SizedBox(height: 16),
           Text(
-            'Getting your weather...',
-            style: TextStyle(
+            isLive ? 'Fetching live Open-Meteo weather...' : 'Preparing demo simulation...',
+            style: const TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w600,
               color: AppColors.textDark,
             ),
           ),
-          SizedBox(height: 4),
+          const SizedBox(height: 4),
           Text(
-            '📍 Detecting location  •  ☁️ Fetching Open-Meteo forecast',
-            style: TextStyle(fontSize: 12, color: AppColors.secondaryText),
+            isLive ? '📍 Open-Meteo API  •  ☁️ Real Coordinates' : '🎬 Hackathon Demo Scenario Engine',
+            style: const TextStyle(fontSize: 12, color: AppColors.secondaryText),
           ),
         ],
       ),

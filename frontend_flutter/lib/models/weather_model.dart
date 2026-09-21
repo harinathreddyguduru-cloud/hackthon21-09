@@ -9,8 +9,12 @@ class WeatherData {
   final int windSpeed;
   final int rainProbability;
   final int uvIndex;
-  final bool isMock;
+  final bool isDemo;
+  final String weatherSource;
+  final String modeLabel;
+  final String modeSubtitle;
   final String? demoScenario;
+  final String provider;
   final List<HourlyForecast> hourlyForecast;
   final List<DailyForecast> dailyForecast;
 
@@ -25,8 +29,12 @@ class WeatherData {
     required this.windSpeed,
     required this.rainProbability,
     required this.uvIndex,
-    required this.isMock,
+    required this.isDemo,
+    required this.weatherSource,
+    required this.modeLabel,
+    required this.modeSubtitle,
     this.demoScenario,
+    required this.provider,
     required this.hourlyForecast,
     required this.dailyForecast,
   });
@@ -43,8 +51,12 @@ class WeatherData {
       windSpeed: (json['wind_speed'] as num).toInt(),
       rainProbability: (json['rain_probability'] as num).toInt(),
       uvIndex: (json['uv_index'] as num).toInt(),
-      isMock: json['is_mock'] ?? false,
+      isDemo: json['is_demo'] ?? (json['is_mock'] ?? false),
+      weatherSource: json['weather_source'] ?? (json['is_mock'] == true ? 'demo' : 'open_meteo'),
+      modeLabel: json['mode_label'] ?? (json['is_mock'] == true ? '🟠 DEMO MODE' : '🟢 LIVE WEATHER'),
+      modeSubtitle: json['mode_subtitle'] ?? (json['is_mock'] == true ? 'Simulated weather scenario' : 'Real weather data from Open-Meteo'),
       demoScenario: json['demo_scenario'],
+      provider: json['provider'] ?? 'Open-Meteo',
       hourlyForecast: (json['hourly_forecast'] as List? ?? [])
           .map((item) => HourlyForecast.fromJson(item))
           .toList(),
