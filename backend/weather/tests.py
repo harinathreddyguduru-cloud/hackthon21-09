@@ -23,7 +23,7 @@ class WeatherAPITests(TestCase):
         weather = WeatherAPIService.get_weather("Guntur", lat=16.3067, lon=80.4365, demo_mode="live")
         self.assertIn("temperature", weather)
         self.assertIn("humidity", weather)
-        self.assertEqual(weather["provider"], "Open-Meteo")
+        self.assertIn(weather["provider"], ["WeatherAPI.com", "Open-Meteo"])
 
     def test_geocoding_city_search(self):
         results = WeatherAPIService.geocode_city("Hyderabad")

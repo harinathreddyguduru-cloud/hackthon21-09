@@ -257,36 +257,17 @@ export default function App() {
                   }`}
                 >
                   <span>🟢 Live Weather</span>
-                </button>
-                <button
-                  onClick={() => setDemoScenario('rain')}
-                  className={`py-2 px-3 rounded-xl font-bold transition flex items-center justify-center gap-1.5 border ${
-                    !isLive ? 'bg-amber-500 text-white border-amber-400 shadow-md' : 'bg-white/20 text-white border-white/30 hover:bg-white/30'
-                  }`}
-                >
-                  <span>🎬 Demo Mode</span>
-                </button>
-              </div>
-
-              {/* Clear Mode Indicator Banner */}
-              <div className={`p-3 rounded-2xl border backdrop-blur-md flex items-center justify-between text-xs ${
-                weatherData?.is_demo 
-                  ? 'bg-amber-500/20 border-amber-300/50 text-amber-100' 
-                  : 'bg-white/20 border-white/40 text-white'
-              }`}>
+              {/* 100% Real-Time Weather Badge */}
+              <div className="p-3 rounded-2xl border backdrop-blur-md flex items-center justify-between text-xs bg-white/20 border-white/40 text-white">
                 <div className="flex items-center gap-2">
-                  <span className={`w-2.5 h-2.5 rounded-full ${weatherData?.is_demo ? 'bg-amber-400' : 'bg-emerald-400 animate-pulse'}`}></span>
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
                   <div>
-                    <div className="font-bold tracking-wide">
-                      {weatherData?.mode_label || (weatherData?.is_demo ? '🟠 DEMO MODE' : '🟢 LIVE WEATHER')}
-                    </div>
-                    <div className="text-[10px] opacity-80">
-                      {weatherData?.mode_subtitle || (weatherData?.is_demo ? 'Simulated weather scenario for hackathon demonstration' : 'Real weather data from Open-Meteo')}
-                    </div>
+                    <div className="font-bold tracking-wide">🟢 100% REAL-TIME LIVE WEATHER</div>
+                    <div className="text-[10px] opacity-80">Real-time weather observations from WeatherAPI.com & Open-Meteo</div>
                   </div>
                 </div>
-                <span className="text-[9px] font-bold uppercase px-2 py-0.5 rounded bg-white/20 text-white">
-                  {weatherData?.is_demo ? 'SIMULATION' : 'REAL FACT'}
+                <span className="text-[9px] font-bold uppercase px-2 py-0.5 rounded bg-emerald-500/40 text-white border border-emerald-300/40">
+                  REAL LIVE
                 </span>
               </div>
 

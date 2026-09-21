@@ -42,20 +42,6 @@ class HomeScreen extends StatelessWidget {
                             // 1. Header Bar: Location Title + Menu
                             _buildHeaderBar(context, provider),
 
-                            const SizedBox(height: 12),
-
-                            // Mode Switcher Bar (🟢 LIVE WEATHER vs 🎬 DEMO MODE)
-                            _buildModeSwitcherSection(context, provider),
-
-                            const SizedBox(height: 12),
-
-                            // Clear Mode Indicator Banner
-                            ModeIndicator(
-                              isDemo: weather.isDemo,
-                              label: weather.modeLabel,
-                              subtitle: weather.modeSubtitle,
-                            ),
-
                             const SizedBox(height: 16),
 
                             // 2. Hero Weather Header (33°C, Hazy sunshine, Feels like 43°)
