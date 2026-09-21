@@ -47,6 +47,15 @@ class WeatherAPIService:
         if demo in ['normal', 'rain', 'heat', 'wind']:
             return WeatherAPIService._get_mock_weather(location_name, demo)
 
+        api_key = getattr(settings, 'WEATHER_API_KEY', os.getenv('WEATHER_API_KEY', ''))
+        
+        if api_key and len(str(api_key).strip()) > 0:
+            try:
+                print(f"Fetching live weather from WeatherAPI.com for {location_name}...")
+                return WeatherAPIService.fetch_weatherapi_com_weather(lat, lon, location_name, str(api_key).strip())
+            except Exception as e:
+                print(f"WeatherAPI.com API fetch failed ({e}). Falling back to Open-Meteo.")
+
         if lat is None or lon is None:
             geo = WeatherAPIService.geocode_city(location_name)
             if geo:
@@ -61,6 +70,166 @@ class WeatherAPIService:
         except Exception as e:
             print(f"Open-Meteo API fetch failed ({e}). Returning live fallback.")
             return WeatherAPIService.fetch_open_meteo_weather(16.3067, 80.4365, "Guntur")
+
+    @staticmethod
+    def fetch_weatherapi_com_weather(lat, lon, location_name, api_key):
+        url = "http://api.weatherapi.com/v1/forecast.json"
+        q_str = f"{lat},{lon}" if (lat and lon) else location_name
+        params = {
+            "key": api_key,
+            "q": q_str,
+            "days": 7,
+            "aqi": "yes",
+            "alerts": "yes"
+        }
+        resp = requests.get(url, params=params, timeout=5)
+        if resp.status_code != 200:
+            raise ValueError(f"WeatherAPI.com error status code {resp.status_code}: {resp.text}")
+
+        data = resp.json()
+        return WeatherAPIService._normalize_weatherapi_com(data, location_name)
+
+    @staticmethod
+    def _normalize_weatherapi_com(data, location_name):
+        loc = data.get('location', {})
+        cur = data.get('current', {})
+        forecast_days = data.get('forecast', {}).get('forecastday', [])
+
+        city_name = loc.get('name', location_name.split(',')[0].strip())
+        country = loc.get('country', 'IN')
+        lat = loc.get('lat', 16.3067)
+        lon = loc.get('lon', 80.4365)
+
+        temp = round(cur.get('temp_c', 33))
+        feels_like = round(cur.get('feelslike_c', temp + 4))
+        humidity = round(cur.get('humidity', 62))
+        wind_speed = round(cur.get('wind_kph', 14))
+        wind_dir = round(cur.get('wind_degree', 210))
+        wind_cardinal = cur.get('wind_dir', 'SSW')
+        pressure = round(cur.get('pressure_mb', 1008))
+        precipitation = cur.get('precip_mm', 0.0)
+        uv_val = round(cur.get('uv', 5))
+        visibility_km = round(cur.get('vis_km', 16.1), 1)
+
+        cond_text = cur.get('condition', {}).get('text', 'Partly cloudy')
+        
+        # AQI
+        aqi_raw = cur.get('air_quality', {})
+        pm25 = round(aqi_raw.get('pm2_5', 24))
+        pm10 = round(aqi_raw.get('pm10', 21))
+        so2 = round(aqi_raw.get('so2', 7))
+        co = round(aqi_raw.get('co', 200) / 100.0, 1)
+        us_epa = aqi_raw.get('us-epa-index', 1)
+        
+        aqi_score = pm25 if pm25 > 0 else 24
+        quality = "Good"
+        if us_epa >= 5 or aqi_score > 200:
+            quality = "Very Unhealthy"
+        elif us_epa == 4 or aqi_score > 150:
+            quality = "Unhealthy"
+        elif us_epa == 3 or aqi_score > 100:
+            quality = "Sensitive"
+        elif us_epa == 2 or aqi_score > 50:
+            quality = "Moderate"
+
+        real_aqi = {
+            "score": aqi_score,
+            "quality": quality,
+            "pm25": pm25,
+            "pm10": pm10,
+            "so2": so2,
+            "co": co
+        }
+
+        # Hourly forecast from today's forecastday
+        hourly_forecast = []
+        if forecast_days and 'hour' in forecast_days[0]:
+            hours = forecast_days[0]['hour']
+            for i in range(0, min(24, len(hours)), 4):
+                h = hours[i]
+                h_time = h.get('time', '').split(' ')[-1][:5]
+                try:
+                    hour_num = int(h_time.split(':')[0])
+                    am_pm = "AM" if hour_num < 12 else "PM"
+                    disp_h = hour_num % 12
+                    disp_h = 12 if disp_h == 0 else disp_h
+                    fmt_t = f"{disp_h} {am_pm}"
+                except Exception:
+                    fmt_t = h_time
+
+                hourly_forecast.append({
+                    "time": fmt_t,
+                    "temp": round(h.get('temp_c', temp)),
+                    "icon": "🌧️" if "rain" in h.get('condition', {}).get('text', '').lower() else "🌤️",
+                    "rain_chance": h.get('chance_of_rain', 10)
+                })
+
+        # Daily forecast
+        days_labels = ["Today", "Tomorrow", "Wed", "Thu", "Fri", "Sat", "Sun"]
+        daily_forecast = []
+        for i in range(min(7, len(forecast_days))):
+            fd = forecast_days[i]
+            day_data = fd.get('day', {})
+            d_date = fd.get('date', '')[5:].replace('-', '/')
+            d_cond = day_data.get('condition', {}).get('text', 'Partly cloudy')
+            
+            daily_forecast.append({
+                "day": days_labels[i] if i < len(days_labels) else fd.get('date', ''),
+                "date": d_date,
+                "condition": d_cond,
+                "icon": "🌧️" if "rain" in d_cond.lower() else "🌤️",
+                "high": round(day_data.get('maxtemp_c', temp + 2)),
+                "low": round(day_data.get('mintemp_c', temp - 5)),
+                "rain_chance": day_data.get('daily_chance_of_rain', 15)
+            })
+
+        astro = forecast_days[0].get('astro', {}) if forecast_days else {}
+        sunrise = astro.get('sunrise', '05:59 AM').replace(' AM', '')
+        sunset = astro.get('sunset', '06:04 PM').replace(' PM', '')
+
+        lifestyle = WeatherAPIService._calculate_lifestyle_indices(
+            temp, daily_forecast[0]['rain_chance'] if daily_forecast else 15,
+            wind_speed, uv_val, humidity, real_aqi['score']
+        )
+
+        return {
+            "location": city_name,
+            "country": country,
+            "latitude": lat,
+            "longitude": lon,
+            "temperature": temp,
+            "feels_like": feels_like,
+            "condition": cond_text,
+            "condition_code": "Rain" if "rain" in cond_text.lower() else "Clouds",
+            "humidity": humidity,
+            "wind_speed": wind_speed,
+            "wind_direction": wind_dir,
+            "wind_direction_cardinal": wind_cardinal,
+            "pressure": pressure,
+            "visibility": visibility_km,
+            "rain_probability": daily_forecast[0]['rain_chance'] if daily_forecast else 15,
+            "precipitation": precipitation,
+            "weather_code": 63 if "rain" in cond_text.lower() else 3,
+            "uv_index": uv_val,
+            "uv_label": "Very High" if uv_val >= 8 else ("Strong" if uv_val >= 5 else "Moderate"),
+            "aqi": real_aqi,
+            "sun_trajectory": {
+                "sunrise": sunrise,
+                "sunset": sunset,
+                "moonrise": astro.get('moonrise', '14:33'),
+                "moonset": astro.get('moonset', '01:54')
+            },
+            "lifestyle_activities": lifestyle,
+            "forecast7_url": f"https://forecast7.com/en/16z3180z44/{city_name.lower().replace(' ', '-')}/",
+            "forecast7_widget_id": f"forecast7-{city_name.lower()}",
+            "is_demo": False,
+            "weather_source": "weatherapi_com",
+            "mode_label": "🟢 LIVE WEATHER",
+            "mode_subtitle": "Real weather data from WeatherAPI.com",
+            "provider": "WeatherAPI.com",
+            "hourly_forecast": hourly_forecast,
+            "daily_forecast": daily_forecast
+        }
 
     @staticmethod
     def fetch_open_meteo_weather(lat, lon, location_name):
