@@ -92,14 +92,14 @@ class WeatherProvider extends ChangeNotifier {
           NotificationService.triggerAlertNotification(firstAlert, _currentLocation);
         }
       } else {
-        final fallback = ApiService._buildLocalFallbackResponse(_currentLocation, _demoScenario);
+        final fallback = ApiService.buildLocalFallbackResponse(_currentLocation, _demoScenario);
         _weatherData = WeatherData.fromJson(fallback['weather']);
         _alertsSummary = AlertsSummary.fromJson(fallback['alerts_summary']);
         _aiSummary = fallback['ai_summary'] ?? '';
       }
     } catch (e) {
       print('Weather loading note ($e). Using local fallback model.');
-      final fallback = ApiService._buildLocalFallbackResponse(_currentLocation, _demoScenario);
+      final fallback = ApiService.buildLocalFallbackResponse(_currentLocation, _demoScenario);
       _weatherData = WeatherData.fromJson(fallback['weather']);
       _alertsSummary = AlertsSummary.fromJson(fallback['alerts_summary']);
       _aiSummary = fallback['ai_summary'] ?? '';

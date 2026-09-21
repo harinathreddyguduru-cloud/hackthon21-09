@@ -34,7 +34,7 @@ class ApiService {
     }
 
     // Local fallback if server unreachable
-    return _buildLocalFallbackResponse(location, demoMode);
+    return buildLocalFallbackResponse(location, demoMode);
   }
 
   static Future<String> askWeatherGPT({
@@ -92,7 +92,7 @@ class ApiService {
     ];
   }
 
-  static Map<String, dynamic> _buildLocalFallbackResponse(String location, String? demoMode) {
+  static Map<String, dynamic> buildLocalFallbackResponse(String location, String? demoMode) {
     final mode = demoMode ?? 'normal';
     int temp = 29;
     int rain = 20;
